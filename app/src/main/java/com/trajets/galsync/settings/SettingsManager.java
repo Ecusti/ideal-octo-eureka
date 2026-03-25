@@ -5,6 +5,9 @@ import android.content.SharedPreferences;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 public class SettingsManager {
     private static final String PREFS_NAME = "galsync_entra_settings";
@@ -16,6 +19,16 @@ public class SettingsManager {
     private static final String KEY_FILTER_ATTRIBUTE = "filter_attribute";
     private static final String KEY_FILTER_VALUE = "filter_value";
 
+    // Sync status keys
+    private static final String KEY_SYNC_ENABLED = "sync_enabled";
+    private static final String KEY_SYNC_INTERVAL_HOURS = "sync_interval_hours";
+    private static final String KEY_LAST_SYNC_SUCCESS_TIME = "last_sync_success_time";
+    private static final String KEY_LAST_SYNC_SUCCESS_COUNT = "last_sync_success_count";
+    private static final String KEY_LAST_SYNC_ERROR_TIME = "last_sync_error_time";
+    private static final String KEY_LAST_SYNC_ERROR_MESSAGE = "last_sync_error_message";
+
+    private static final int DEFAULT_SYNC_INTERVAL_HOURS = 24;
+
     private final SharedPreferences prefs;
     private final Context context;
 
@@ -23,6 +36,8 @@ public class SettingsManager {
         this.context = context;
         this.prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
+
+    // --- Entra ID settings ---
 
     public String getClientId() {
         return prefs.getString(KEY_CLIENT_ID, "");
@@ -91,11 +106,63 @@ public class SettingsManager {
                 && val != null && !val.trim().isEmpty();
     }
 
+    // --- Sync status and interval ---
+
+    public boolean isSyncEnabled() {
+        return prefs.getBoolean(KEY_SYNC_ENABLED, true);
+    }
+
+    public void setSyncEnabled(boolean enabled) {
+        prefs.edit().putBoolean(KEY_SYNC_ENABLED, enabled).apply();
+    }
+
+    public int getSyncIntervalHours() {
+        return prefs.getInt(KEY_SYNC_INTERVAL_HOURS, DEFAULT_SYNC_INTERVAL_HOURS);
+    }
+
+    public void setSyncIntervalHours(int hours) {
+        prefs.edit().putInt(KEY_SYNC_INTERVAL_HOURS, hours).apply();
+    }
+
+    public void recordSyncSuccess(int contactCount) {
+        prefs.edit()
+                .putLong(KEY_LAST_SYNC_SUCCESS_TIME, System.currentTimeMillis())
+                .putInt(KEY_LAST_SYNC_SUCCESS_COUNT, contactCount)
+                .apply();
+    }
+
+    public void recordSyncError(String errorMessage) {
+        prefs.edit()
+                .putLong(KEY_LAST_SYNC_ERROR_TIME, System.currentTimeMillis())
+                .putString(KEY_LAST_SYNC_ERROR_MESSAGE, errorMessage)
+                .apply();
+    }
+
+    public long getLastSyncSuccessTime() {
+        return prefs.getLong(KEY_LAST_SYNC_SUCCESS_TIME, 0);
+    }
+
+    public int getLastSyncSuccessCount() {
+        return prefs.getInt(KEY_LAST_SYNC_SUCCESS_COUNT, 0);
+    }
+
+    public long getLastSyncErrorTime() {
+        return prefs.getLong(KEY_LAST_SYNC_ERROR_TIME, 0);
+    }
+
+    public String getLastSyncErrorMessage() {
+        return prefs.getString(KEY_LAST_SYNC_ERROR_MESSAGE, "");
+    }
+
+    public String formatTimestamp(long timestamp) {
+        if (timestamp == 0) return null;
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
+        return sdf.format(new Date(timestamp));
+    }
+
     /**
      * Generate the MSAL auth_config.json dynamically from settings
      * and write it to internal storage.
-     *
-     * @return the File pointing to the generated config, or null if settings are incomplete
      */
     public File generateAuthConfig() {
         if (!isConfigured()) {

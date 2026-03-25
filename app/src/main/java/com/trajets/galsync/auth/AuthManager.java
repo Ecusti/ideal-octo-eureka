@@ -1,6 +1,7 @@
 package com.trajets.galsync.auth;
 
 import android.app.Activity;
+import android.content.Context;
 import android.util.Log;
 
 import com.microsoft.identity.client.AuthenticationCallback;
@@ -20,7 +21,8 @@ public class AuthManager {
     private static final String TAG = "AuthManager";
     private static final String[] SCOPES = {"User.Read", "User.ReadBasic.All", "Contacts.Read"};
 
-    private final Activity activity;
+    private final Context context;
+    private Activity activity;
     private ISingleAccountPublicClientApplication msalApp;
     private String accessToken;
     private boolean isInitializing = false;
@@ -30,7 +32,20 @@ public class AuthManager {
         void onError(Exception exception);
     }
 
+    /**
+     * Constructor for background use (SyncWorker). Only silent token acquisition will work.
+     */
+    public AuthManager(Context context) {
+        this.context = context.getApplicationContext();
+        this.activity = null;
+        initializeMsal();
+    }
+
+    /**
+     * Constructor for interactive use (Activity). Supports both interactive and silent auth.
+     */
     public AuthManager(Activity activity) {
+        this.context = activity;
         this.activity = activity;
         initializeMsal();
     }
@@ -44,7 +59,7 @@ public class AuthManager {
         isInitializing = true;
         Log.d(TAG, "Démarrage de l'initialisation MSAL...");
 
-        SettingsManager settingsManager = new SettingsManager(activity);
+        SettingsManager settingsManager = new SettingsManager(context);
 
         IPublicClientApplication.ISingleAccountApplicationCreatedListener listener =
                 new IPublicClientApplication.ISingleAccountApplicationCreatedListener() {
@@ -65,7 +80,7 @@ public class AuthManager {
             if (configFile != null && configFile.exists()) {
                 Log.d(TAG, "Utilisation de la configuration dynamique Entra ID");
                 PublicClientApplication.createSingleAccountPublicClientApplication(
-                        activity, configFile, listener);
+                        context, configFile, listener);
                 return;
             }
         }
@@ -73,17 +88,20 @@ public class AuthManager {
         // Fallback: use bundled auth_config if available
         Log.d(TAG, "Utilisation de la configuration auth_config intégrée");
         PublicClientApplication.createSingleAccountPublicClientApplication(
-                activity, R.raw.auth_config, listener);
+                context, R.raw.auth_config, listener);
     }
 
     public void checkSignedInAccount(final AuthCallback callback) {
         if (msalApp == null) {
-            // Attendre que MSAL soit initialisé
-            new android.os.Handler().postDelayed(new Runnable() {
-                public void run() {
-                    checkSignedInAccount(callback);
-                }
-            }, 500);
+            if (isInitializing) {
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                    public void run() {
+                        checkSignedInAccount(callback);
+                    }
+                }, 500);
+                return;
+            }
+            callback.onError(new Exception("MSAL non initialisé"));
             return;
         }
 
@@ -91,7 +109,6 @@ public class AuthManager {
             public void onAccountLoaded(IAccount activeAccount) {
                 if (activeAccount != null) {
                     Log.d(TAG, "Compte déjà connecté: " + activeAccount.getUsername());
-                    // Récupérer un token silencieusement
                     acquireTokenSilently(callback);
                 } else {
                     Log.d(TAG, "Aucun compte connecté");
@@ -112,10 +129,15 @@ public class AuthManager {
     public void signIn(final AuthCallback callback) {
         Log.d(TAG, "signIn appelé. msalApp == null? " + (msalApp == null));
 
+        if (activity == null) {
+            callback.onError(new Exception("Connexion interactive impossible sans Activity"));
+            return;
+        }
+
         if (msalApp == null) {
             if (isInitializing) {
                 Log.d(TAG, "MSAL en cours d'initialisation, attente...");
-                new android.os.Handler().postDelayed(new Runnable() {
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
                     public void run() {
                         signIn(callback);
                     }
@@ -132,11 +154,9 @@ public class AuthManager {
         msalApp.getCurrentAccountAsync(new ISingleAccountPublicClientApplication.CurrentAccountCallback() {
             public void onAccountLoaded(IAccount activeAccount) {
                 if (activeAccount != null) {
-                    // Un compte est déjà connecté, obtenir un token silencieusement
                     Log.d(TAG, "Compte déjà connecté, acquisition de token silencieuse");
                     acquireTokenSilently(callback);
                 } else {
-                    // Pas de compte, continuer avec la connexion interactive
                     performInteractiveSignIn(callback);
                 }
             }
@@ -152,16 +172,21 @@ public class AuthManager {
     }
 
     private void performInteractiveSignIn(final AuthCallback callback) {
+        if (activity == null) {
+            callback.onError(new Exception("Connexion interactive impossible sans Activity"));
+            return;
+        }
+
         Log.d(TAG, "Lancement de la connexion MSAL interactive...");
         msalApp.signIn(activity, null, SCOPES, new AuthenticationCallback() {
             public void onSuccess(IAuthenticationResult authenticationResult) {
                 accessToken = authenticationResult.getAccessToken();
-                Log.d(TAG, "✓ Connexion réussie");
+                Log.d(TAG, "Connexion réussie");
                 callback.onSuccess(accessToken);
             }
 
             public void onError(MsalException exception) {
-                Log.e(TAG, "✗ Erreur de connexion", exception);
+                Log.e(TAG, "Erreur de connexion", exception);
                 callback.onError(exception);
             }
 
@@ -174,6 +199,14 @@ public class AuthManager {
 
     public void acquireTokenSilently(final AuthCallback callback) {
         if (msalApp == null) {
+            if (isInitializing) {
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                    public void run() {
+                        acquireTokenSilently(callback);
+                    }
+                }, 500);
+                return;
+            }
             callback.onError(new Exception("MSAL non initialisé"));
             return;
         }

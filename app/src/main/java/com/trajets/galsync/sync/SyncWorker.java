@@ -7,7 +7,7 @@ import androidx.annotation.NonNull;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
-import com.trajets.galsync.auth.AuthManager;
+import com.trajets.galsync.settings.SettingsManager;
 
 public class SyncWorker extends Worker {
     private static final String TAG = "SyncWorker";
@@ -23,16 +23,19 @@ public class SyncWorker extends Worker {
 
         try {
             Context context = getApplicationContext();
-            AuthManager authManager = new AuthManager((android.app.Activity) context);
+            SettingsManager settingsManager = new SettingsManager(context);
 
-            // Vérifier si on a un token
-            String accessToken = authManager.getAccessToken();
-
-            if (accessToken == null || accessToken.isEmpty()) {
-                Log.d(TAG, "Pas de token disponible, synchronisation ignorée");
+            if (!settingsManager.isConfigured()) {
+                Log.d(TAG, "Entra ID non configuré, synchronisation ignorée");
                 return Result.failure();
             }
 
+            if (!settingsManager.isSyncEnabled()) {
+                Log.d(TAG, "Synchronisation automatique désactivée");
+                return Result.success();
+            }
+
+            // Use Context-based constructor (no Activity required for silent auth)
             ContactSyncManager syncManager = new ContactSyncManager(context);
 
             final boolean[] success = {false};
@@ -62,7 +65,6 @@ public class SyncWorker extends Worker {
                 }
             });
 
-            // Attendre la fin de la synchronisation
             synchronized (lock) {
                 lock.wait(300000); // Max 5 minutes
             }
@@ -71,6 +73,8 @@ public class SyncWorker extends Worker {
 
         } catch (Exception e) {
             Log.e(TAG, "Erreur critique dans SyncWorker", e);
+            SettingsManager settingsManager = new SettingsManager(getApplicationContext());
+            settingsManager.recordSyncError(e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
             return Result.failure();
         }
     }

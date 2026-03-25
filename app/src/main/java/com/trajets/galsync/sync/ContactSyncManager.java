@@ -3,6 +3,7 @@ package com.trajets.galsync.sync;
 import android.content.ContentProviderOperation;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.database.Cursor;
 import android.provider.ContactsContract;
 import android.util.Log;
 
@@ -33,9 +34,22 @@ public class ContactSyncManager {
         void onError(Exception exception);
     }
 
+    /**
+     * Constructor for use from an Activity (interactive auth available).
+     */
+    public ContactSyncManager(android.app.Activity activity) {
+        this.context = activity;
+        this.authManager = new AuthManager(activity);
+        this.settingsManager = new SettingsManager(activity);
+        this.executor = Executors.newSingleThreadExecutor();
+    }
+
+    /**
+     * Constructor for background use (SyncWorker). Only silent auth.
+     */
     public ContactSyncManager(Context context) {
         this.context = context;
-        this.authManager = new AuthManager((android.app.Activity) context);
+        this.authManager = new AuthManager(context);
         this.settingsManager = new SettingsManager(context);
         this.executor = Executors.newSingleThreadExecutor();
     }
@@ -44,12 +58,10 @@ public class ContactSyncManager {
         executor.execute(new Runnable() {
             public void run() {
                 try {
-                    // Créer un AuthManager temporaire pour cette opération
                     final String[] tokenHolder = new String[1];
                     final Exception[] errorHolder = new Exception[1];
                     final Object lock = new Object();
 
-                    // Utiliser le token existant de l'AuthManager principal
                     synchronized (lock) {
                         authManager.acquireTokenSilently(new AuthManager.AuthCallback() {
                             public void onSuccess(String accessToken) {
@@ -68,34 +80,102 @@ public class ContactSyncManager {
                         });
 
                         try {
-                            lock.wait(10000); // Attendre max 10 secondes
+                            lock.wait(15000);
                         } catch (InterruptedException e) {
+                            recordError(e);
                             callback.onError(e);
                             return;
                         }
                     }
 
                     if (errorHolder[0] != null) {
+                        recordError(errorHolder[0]);
                         callback.onError(errorHolder[0]);
                         return;
                     }
 
                     if (tokenHolder[0] == null) {
-                        callback.onError(new Exception("Timeout lors de l'acquisition du token"));
+                        Exception e = new Exception("Timeout lors de l'acquisition du token");
+                        recordError(e);
+                        callback.onError(e);
                         return;
                     }
 
-                    // Maintenant on est dans le thread en arrière-plan, on peut faire l'appel réseau
                     List<EntraUser> users = fetchUsersFromGraph(tokenHolder[0]);
+
+                    // Delete all existing GalSync contacts before re-inserting
+                    deleteExistingContacts();
+
                     int syncedCount = syncContactsToDevice(users, callback);
+
+                    settingsManager.recordSyncSuccess(syncedCount);
                     callback.onComplete(syncedCount);
 
                 } catch (Exception e) {
                     Log.e(TAG, "Erreur de synchronisation", e);
+                    recordError(e);
                     callback.onError(e);
                 }
             }
         });
+    }
+
+    private void recordError(Exception e) {
+        String message = e.getMessage();
+        if (message == null) message = e.getClass().getSimpleName();
+        settingsManager.recordSyncError(message);
+    }
+
+    /**
+     * Delete all existing RawContacts belonging to our account.
+     * This ensures changes in Entra ID (updated/removed users) are reflected.
+     */
+    private void deleteExistingContacts() {
+        ContentResolver resolver = context.getContentResolver();
+        int deleted = 0;
+
+        Cursor cursor = resolver.query(
+                ContactsContract.RawContacts.CONTENT_URI,
+                new String[]{ContactsContract.RawContacts._ID},
+                ContactsContract.RawContacts.ACCOUNT_TYPE + "=? AND " + ContactsContract.RawContacts.ACCOUNT_NAME + "=?",
+                new String[]{ACCOUNT_TYPE, ACCOUNT_NAME},
+                null
+        );
+
+        if (cursor != null) {
+            ArrayList<ContentProviderOperation> ops = new ArrayList<>();
+            while (cursor.moveToNext()) {
+                long rawContactId = cursor.getLong(0);
+                ops.add(ContentProviderOperation.newDelete(
+                        ContactsContract.RawContacts.CONTENT_URI.buildUpon()
+                                .appendPath(String.valueOf(rawContactId))
+                                .build()
+                ).build());
+
+                // Apply in batches of 100 to avoid TransactionTooLargeException
+                if (ops.size() >= 100) {
+                    try {
+                        resolver.applyBatch(ContactsContract.AUTHORITY, ops);
+                        deleted += ops.size();
+                    } catch (Exception e) {
+                        Log.e(TAG, "Erreur lors de la suppression d'un lot de contacts", e);
+                    }
+                    ops.clear();
+                }
+            }
+            cursor.close();
+
+            if (!ops.isEmpty()) {
+                try {
+                    resolver.applyBatch(ContactsContract.AUTHORITY, ops);
+                    deleted += ops.size();
+                } catch (Exception e) {
+                    Log.e(TAG, "Erreur lors de la suppression du dernier lot de contacts", e);
+                }
+            }
+        }
+
+        Log.d(TAG, "Contacts GalSync supprimés: " + deleted);
     }
 
     private int syncContactsToDevice(List<EntraUser> users, SyncCallback callback) {
@@ -106,22 +186,20 @@ public class ContactSyncManager {
             EntraUser user = users.get(i);
             callback.onProgress(i + 1, users.size());
 
-            // Vérifier que l'utilisateur a au moins un nom
             if (user.getDisplayName() == null || user.getDisplayName().trim().isEmpty()) {
                 Log.d(TAG, "Utilisateur ignoré (pas de nom): " + user.getEmail());
                 continue;
             }
 
-            // Créer un nouveau batch d'opérations pour CHAQUE contact
             ArrayList<ContentProviderOperation> ops = new ArrayList<>();
 
-            // Ajouter le RawContact
+            // RawContact
             ops.add(ContentProviderOperation.newInsert(ContactsContract.RawContacts.CONTENT_URI)
                     .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, ACCOUNT_TYPE)
                     .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, ACCOUNT_NAME)
                     .build());
 
-            // Nom (index 0 dans le batch)
+            // Nom
             ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
                     .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
                     .withValue(ContactsContract.Data.MIMETYPE,
@@ -155,7 +233,7 @@ public class ContactSyncManager {
                         .build());
             }
 
-            // Téléphone mobile (seulement s'il est différent du téléphone professionnel)
+            // Téléphone mobile
             if (user.getMobilePhone() != null && !user.getMobilePhone().trim().isEmpty()) {
                 if (user.getPhoneNumber() == null || !user.getMobilePhone().equals(user.getPhoneNumber())) {
                     ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
@@ -170,7 +248,7 @@ public class ContactSyncManager {
                 }
             }
 
-            // Organisation : UNE SEULE ENTRÉE avec fonction - département
+            // Organisation
             if (user.getJobTitle() != null && !user.getJobTitle().trim().isEmpty()) {
                 android.content.ContentProviderOperation.Builder orgBuilder =
                         ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
@@ -180,14 +258,12 @@ public class ContactSyncManager {
                                 .withValue(ContactsContract.CommonDataKinds.Organization.TYPE,
                                         ContactsContract.CommonDataKinds.Organization.TYPE_WORK);
 
-                // Construire le titre: "Fonction - Département"
                 StringBuilder titleBuilder = new StringBuilder(user.getJobTitle());
                 if (user.getDepartment() != null && !user.getDepartment().trim().isEmpty()) {
                     titleBuilder.append(" - ").append(user.getDepartment());
                 }
                 orgBuilder.withValue(ContactsContract.CommonDataKinds.Organization.TITLE, titleBuilder.toString());
 
-                // Ajouter le bureau comme "Company" si disponible
                 if (user.getOfficeLocation() != null && !user.getOfficeLocation().trim().isEmpty()) {
                     orgBuilder.withValue(ContactsContract.CommonDataKinds.Organization.COMPANY,
                             user.getOfficeLocation());
@@ -196,7 +272,7 @@ public class ContactSyncManager {
                 ops.add(orgBuilder.build());
             }
 
-            // Manager (Relation)
+            // Manager
             if (user.getManagerName() != null && !user.getManagerName().trim().isEmpty()) {
                 ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
                         .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
@@ -209,7 +285,7 @@ public class ContactSyncManager {
                         .build());
             }
 
-            // Photo de profil
+            // Photo
             if (user.getPhotoData() != null && user.getPhotoData().length > 0) {
                 ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
                         .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
@@ -220,9 +296,8 @@ public class ContactSyncManager {
                         .build());
             }
 
-            // Lien Teams - Via IM Protocol pour ouvrir l'app Teams
+            // Teams links
             if (user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
-                // Lien pour ouvrir Teams directement
                 ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
                         .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
                         .withValue(ContactsContract.Data.MIMETYPE,
@@ -233,7 +308,6 @@ public class ContactSyncManager {
                                 ContactsContract.CommonDataKinds.Im.PROTOCOL_SKYPE)
                         .build());
 
-                // ET ajouter aussi comme website pour compatibilité
                 String teamsLink = "https://teams.microsoft.com/l/chat/0/0?users=" + user.getEmail();
                 ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
                         .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
@@ -244,11 +318,10 @@ public class ContactSyncManager {
                         .withValue(ContactsContract.CommonDataKinds.Website.TYPE,
                                 ContactsContract.CommonDataKinds.Website.TYPE_OTHER)
                         .withValue(ContactsContract.CommonDataKinds.Website.LABEL,
-                                "💬 Chat Teams")
+                                "Chat Teams")
                         .build());
             }
 
-            // Appliquer les opérations pour CE contact immédiatement
             try {
                 resolver.applyBatch(ContactsContract.AUTHORITY, ops);
                 syncedCount++;
@@ -266,13 +339,11 @@ public class ContactSyncManager {
 
         try {
             Log.d(TAG, "=== DEBUT fetchUsersFromGraph ===");
-            Log.d(TAG, "Access token présent: " + (accessToken != null && !accessToken.isEmpty()));
 
             if (accessToken == null || accessToken.isEmpty()) {
                 throw new Exception("Access token manquant");
             }
 
-            Log.d(TAG, "Récupération de tous les utilisateurs actifs...");
             okhttp3.OkHttpClient client = new okhttp3.OkHttpClient.Builder()
                     .connectTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
                     .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
@@ -305,10 +376,7 @@ public class ContactSyncManager {
                     .addHeader("Content-Type", "application/json")
                     .build();
 
-            Log.d(TAG, "Envoi de la requête...");
             okhttp3.Response response = client.newCall(request).execute();
-
-            Log.d(TAG, "Code réponse HTTP: " + response.code());
 
             if (!response.isSuccessful()) {
                 String errorBody = response.body() != null ? response.body().string() : "Pas de détails";
@@ -317,19 +385,13 @@ public class ContactSyncManager {
             }
 
             String jsonResponse = response.body().string();
-            Log.d(TAG, "Réponse JSON reçue (longueur: " + jsonResponse.length() + ")");
-
-            // Parser le JSON avec Gson
-            com.google.gson.JsonParser parser = new com.google.gson.JsonParser();
-            com.google.gson.JsonObject jsonObject = parser.parse(jsonResponse).getAsJsonObject();
+            com.google.gson.JsonObject jsonObject = com.google.gson.JsonParser.parseString(jsonResponse).getAsJsonObject();
 
             if (!jsonObject.has("value")) {
-                Log.e(TAG, "Pas de champ 'value' dans la réponse JSON");
                 throw new Exception("Format JSON invalide - pas de champ 'value'");
             }
 
             com.google.gson.JsonArray usersArray = jsonObject.getAsJsonArray("value");
-
             Log.d(TAG, "Nombre total d'utilisateurs actifs: " + usersArray.size());
 
             int ignoredNoJobTitle = 0;
@@ -347,30 +409,23 @@ public class ContactSyncManager {
                     String upn = userJson.has("userPrincipalName") && !userJson.get("userPrincipalName").isJsonNull()
                             ? userJson.get("userPrincipalName").getAsString() : "";
 
-                    // FILTRE 1: Vérifier que displayName n'est pas vide
                     if (displayName.trim().isEmpty()) {
                         ignoredNoName++;
-                        Log.d(TAG, "Ignoré (pas de nom): " + upn);
                         continue;
                     }
 
-                    // FILTRE 2: Vérifier que jobTitle n'est pas vide
                     if (!userJson.has("jobTitle") || userJson.get("jobTitle").isJsonNull() ||
                             userJson.get("jobTitle").getAsString().trim().isEmpty()) {
                         ignoredNoJobTitle++;
-                        Log.d(TAG, "Ignoré (pas de job title): " + displayName);
                         continue;
                     }
 
-                    // FILTRE 3: Vérifier que department n'est pas vide
                     if (!userJson.has("department") || userJson.get("department").isJsonNull() ||
                             userJson.get("department").getAsString().trim().isEmpty()) {
                         ignoredNoDepartment++;
-                        Log.d(TAG, "Ignoré (pas de département): " + displayName);
                         continue;
                     }
 
-                    // FILTRE 4: Vérifier le userPrincipalName pour les préfixes à exclure
                     String upnLower = upn.toLowerCase();
                     String[] excludedPrefixes = {"dev_", "adm_", "spe_", "sup_"};
                     boolean shouldExclude = false;
@@ -379,7 +434,6 @@ public class ContactSyncManager {
                         if (upnLower.startsWith(prefix)) {
                             shouldExclude = true;
                             ignoredPrefix++;
-                            Log.d(TAG, "Ignoré (préfixe exclu): " + upn);
                             break;
                         }
                     }
@@ -388,17 +442,15 @@ public class ContactSyncManager {
                         continue;
                     }
 
-                    // FILTRE 5: Security group membership
+                    // Security group membership filter
                     if (groupMemberIds != null) {
                         String uid = userJson.has("id") && !userJson.get("id").isJsonNull()
                                 ? userJson.get("id").getAsString() : "";
                         if (!groupMemberIds.contains(uid)) {
-                            Log.d(TAG, "Ignoré (pas dans le groupe de sécurité): " + displayName);
                             continue;
                         }
                     }
 
-                    // Créer l'utilisateur - tous les filtres sont passés
                     EntraUser entraUser = new EntraUser();
 
                     String userId = null;
@@ -413,7 +465,6 @@ public class ContactSyncManager {
                         entraUser.setEmail(userJson.get("mail").getAsString());
                     }
 
-                    // Téléphones professionnels
                     if (userJson.has("businessPhones") && !userJson.get("businessPhones").isJsonNull()) {
                         com.google.gson.JsonArray phones = userJson.getAsJsonArray("businessPhones");
                         if (phones.size() > 0 && !phones.get(0).isJsonNull()) {
@@ -421,15 +472,11 @@ public class ContactSyncManager {
                         }
                     }
 
-                    // Téléphone mobile
                     if (userJson.has("mobilePhone") && !userJson.get("mobilePhone").isJsonNull()) {
                         entraUser.setMobilePhone(userJson.get("mobilePhone").getAsString());
                     }
 
-                    // JobTitle
                     entraUser.setJobTitle(userJson.get("jobTitle").getAsString());
-
-                    // Department
                     entraUser.setDepartment(userJson.get("department").getAsString());
 
                     if (userJson.has("officeLocation") && !userJson.get("officeLocation").isJsonNull()) {
@@ -439,17 +486,13 @@ public class ContactSyncManager {
                     users.add(entraUser);
                     processedCount++;
 
-                    Log.d(TAG, "Utilisateur " + processedCount + " ajouté: " + displayName +
-                            " (Job: " + entraUser.getJobTitle() + ", Dept: " + entraUser.getDepartment() + ")");
-
                 } catch (Exception e) {
                     Log.e(TAG, "Erreur lors du traitement d'un utilisateur à l'index " + i, e);
                 }
             }
 
-            Log.d(TAG, "=== PHASE 1 TERMINÉE - Récupération des managers et photos ===");
+            Log.d(TAG, "=== Récupération des managers et photos ===");
 
-            // Récupérer les managers et photos en lot après avoir filtré
             int managerSuccessCount = 0;
             int photoSuccessCount = 0;
 
@@ -457,54 +500,35 @@ public class ContactSyncManager {
                 EntraUser user = users.get(i);
 
                 if (user.getId() != null) {
-                    // Manager
                     try {
                         fetchUserManagerQuick(client, accessToken, user.getId(), user);
-                        if (user.getManagerName() != null) {
-                            managerSuccessCount++;
-                        }
+                        if (user.getManagerName() != null) managerSuccessCount++;
                     } catch (Exception e) {
-                        // Pas grave si pas de manager
+                        // Pas grave
                     }
 
-                    // Photo
                     try {
                         fetchUserPhoto(client, accessToken, user.getId(), user);
-                        if (user.getPhotoData() != null) {
-                            photoSuccessCount++;
-                        }
+                        if (user.getPhotoData() != null) photoSuccessCount++;
                     } catch (Exception e) {
-                        // Pas grave si pas de photo
+                        // Pas grave
                     }
                 }
 
-                // Log tous les 50
                 if ((i + 1) % 50 == 0) {
                     Log.d(TAG, "Progression managers/photos: " + (i + 1) + "/" + users.size());
                 }
             }
 
             Log.d(TAG, "=== STATISTIQUES FINALES ===");
-            Log.d(TAG, "Total utilisateurs actifs dans l'annuaire: " + usersArray.size());
-            Log.d(TAG, "Ignorés (sans nom): " + ignoredNoName);
-            Log.d(TAG, "Ignorés (sans job title): " + ignoredNoJobTitle);
-            Log.d(TAG, "Ignorés (sans département): " + ignoredNoDepartment);
-            Log.d(TAG, "Ignorés (préfixe dev_/adm_/spe_/sup_): " + ignoredPrefix);
-            Log.d(TAG, "Utilisateurs valides: " + processedCount);
-            Log.d(TAG, "Managers récupérés: " + managerSuccessCount);
-            Log.d(TAG, "Photos récupérées: " + photoSuccessCount);
-            Log.d(TAG, "=== FIN fetchUsersFromGraph ===");
+            Log.d(TAG, "Total actifs: " + usersArray.size() + ", Ignorés sans nom: " + ignoredNoName
+                    + ", sans job: " + ignoredNoJobTitle + ", sans dept: " + ignoredNoDepartment
+                    + ", préfixe exclu: " + ignoredPrefix + ", Valides: " + processedCount
+                    + ", Managers: " + managerSuccessCount + ", Photos: " + photoSuccessCount);
 
         } catch (Exception e) {
-            Log.e(TAG, "=== ERREUR CRITIQUE dans fetchUsersFromGraph ===", e);
-            Log.e(TAG, "Type d'erreur: " + e.getClass().getName());
-            Log.e(TAG, "Message: " + e.getMessage());
-            e.printStackTrace();
-
-            EntraUser errorUser = new EntraUser();
-            errorUser.setDisplayName("Erreur Graph API");
-            errorUser.setEmail("Erreur: " + e.getMessage());
-            users.add(errorUser);
+            Log.e(TAG, "Erreur critique dans fetchUsersFromGraph", e);
+            throw new RuntimeException(e);
         }
 
         return users;
@@ -523,12 +547,13 @@ public class ContactSyncManager {
 
             if (response.isSuccessful() && response.body() != null) {
                 String jsonResponse = response.body().string();
-                com.google.gson.JsonParser parser = new com.google.gson.JsonParser();
-                com.google.gson.JsonObject managerJson = parser.parse(jsonResponse).getAsJsonObject();
+                com.google.gson.JsonObject managerJson = com.google.gson.JsonParser.parseString(jsonResponse).getAsJsonObject();
 
                 if (managerJson.has("displayName") && !managerJson.get("displayName").isJsonNull()) {
                     entraUser.setManagerName(managerJson.get("displayName").getAsString());
                 }
+            } else if (response.body() != null) {
+                response.body().close();
             }
         } catch (Exception e) {
             // Silencieux
@@ -551,6 +576,8 @@ public class ContactSyncManager {
                 if (photoBytes.length > 0) {
                     entraUser.setPhotoData(photoBytes);
                 }
+            } else if (response.body() != null) {
+                response.body().close();
             }
         } catch (Exception e) {
             // Silencieux
@@ -585,43 +612,11 @@ public class ContactSyncManager {
                 }
             } else {
                 Log.e(TAG, "Erreur lors de la récupération des membres du groupe: " + response.code());
+                if (response.body() != null) response.body().close();
             }
         } catch (Exception e) {
             Log.e(TAG, "Erreur lors de la récupération des membres du groupe", e);
         }
         return memberIds;
     }
-
-    private void fetchUserManager(okhttp3.OkHttpClient client, String accessToken, String userId, EntraUser entraUser) {
-        try {
-            String managerUrl = "https://graph.microsoft.com/v1.0/users/" + userId + "/manager?$select=id,displayName";
-
-            okhttp3.Request request = new okhttp3.Request.Builder()
-                    .url(managerUrl)
-                    .addHeader("Authorization", "Bearer " + accessToken)
-                    .build();
-
-            okhttp3.Response response = client.newCall(request).execute();
-
-            if (response.isSuccessful()) {
-                String jsonResponse = response.body().string();
-                com.google.gson.JsonParser parser = new com.google.gson.JsonParser();
-                com.google.gson.JsonObject managerJson = parser.parse(jsonResponse).getAsJsonObject();
-
-                if (managerJson.has("id") && !managerJson.get("id").isJsonNull()) {
-                    entraUser.setManagerId(managerJson.get("id").getAsString());
-                }
-
-                if (managerJson.has("displayName") && !managerJson.get("displayName").isJsonNull()) {
-                    entraUser.setManagerName(managerJson.get("displayName").getAsString());
-                }
-
-                Log.d(TAG, "Manager récupéré pour " + entraUser.getDisplayName() + ": " + entraUser.getManagerName());
-            }
-        } catch (Exception e) {
-            Log.d(TAG, "Pas de manager pour " + entraUser.getDisplayName());
-        }
-    }
-
-
 }

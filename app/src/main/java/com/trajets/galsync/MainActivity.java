@@ -40,20 +40,15 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         Log.d(TAG, "=== onCreate START ===");
         setContentView(R.layout.activity_main);
-        Log.d(TAG, "Layout chargé");
 
-        // Créer le compte Android si nécessaire
         createAccountIfNeeded();
-
-        // Programmer la synchronisation automatique quotidienne
-        scheduleAutoSync();
 
         settingsManager = new SettingsManager(this);
 
         initializeViews();
         initializeManagers();
+        scheduleAutoSync();
 
-        // Vérifier si un utilisateur est déjà connecté
         if (settingsManager.isConfigured()) {
             checkExistingAccount();
         }
@@ -63,7 +58,6 @@ public class MainActivity extends AppCompatActivity {
         new android.os.Handler().postDelayed(new Runnable() {
             public void run() {
                 updateUI();
-                Log.d(TAG, "UI activée après délai");
             }
         }, 2000);
 
@@ -71,7 +65,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void checkExistingAccount() {
-        Log.d(TAG, "Vérification d'un compte existant...");
         authManager.checkSignedInAccount(new AuthManager.AuthCallback() {
             public void onSuccess(String accessToken) {
                 Log.d(TAG, "Compte existant trouvé et token récupéré");
@@ -93,39 +86,30 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
-    private void initializeViews() {
-        Log.d(TAG, "=== initializeViews START ===");
 
+    private void initializeViews() {
         btnLogin = findViewById(R.id.btn_login);
         btnSync = findViewById(R.id.btn_sync);
         btnLogout = findViewById(R.id.btn_logout);
         tvStatus = findViewById(R.id.tv_status);
         progressBar = findViewById(R.id.progress_bar);
 
-        Log.d(TAG, "btnLogin is null? " + (btnLogin == null));
-
         if (btnLogin != null) {
             btnLogin.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    Log.d(TAG, "===== BOUTON LOGIN CLIQUÉ =====");
                     performLogin();
                 }
             });
-            Log.d(TAG, "Listener ajouté au bouton login");
-        } else {
-            Log.e(TAG, "ERREUR: btnLogin est NULL!");
         }
 
         btnSync.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                Log.d(TAG, "===== BOUTON SYNC CLIQUÉ =====");
                 performSync();
             }
         });
 
         btnLogout.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                Log.d(TAG, "===== BOUTON LOGOUT CLIQUÉ =====");
                 performLogout();
             }
         });
@@ -137,15 +121,11 @@ public class MainActivity extends AppCompatActivity {
                 startActivityForResult(intent, SETTINGS_REQUEST_CODE);
             }
         });
-
-        Log.d(TAG, "=== initializeViews END ===");
     }
 
     private void initializeManagers() {
-        Log.d(TAG, "Initialisation des managers...");
         authManager = new AuthManager(this);
         syncManager = new ContactSyncManager(this);
-        Log.d(TAG, "Managers initialisés");
     }
 
     private void checkPermissions() {
@@ -189,7 +169,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void performLogin() {
-        Log.d(TAG, "performLogin appelé");
         if (!settingsManager.isConfigured()) {
             Toast.makeText(this, R.string.settings_not_configured, Toast.LENGTH_LONG).show();
             return;
@@ -197,10 +176,8 @@ public class MainActivity extends AppCompatActivity {
         setLoading(true);
         tvStatus.setText("Connexion en cours...");
 
-        Log.d(TAG, "Appel de authManager.signIn");
         authManager.signIn(new AuthManager.AuthCallback() {
             public void onSuccess(String accessToken) {
-                Log.d(TAG, "Login réussi!");
                 runOnUiThread(new Runnable() {
                     public void run() {
                         setLoading(false);
@@ -229,7 +206,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void performSync() {
-        Log.d(TAG, "performSync appelé");
         setLoading(true);
         tvStatus.setText("Synchronisation des contacts...");
 
@@ -270,7 +246,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void performLogout() {
-        Log.d(TAG, "performLogout appelé");
         authManager.signOut(new Runnable() {
             public void run() {
                 tvStatus.setText("Déconnecté");
@@ -285,8 +260,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == SETTINGS_REQUEST_CODE && resultCode == RESULT_OK) {
-            // Settings changed, reinitialize managers
             initializeManagers();
+            scheduleAutoSync();
             if (settingsManager.isConfigured()) {
                 checkExistingAccount();
             }
@@ -325,32 +300,31 @@ public class MainActivity extends AppCompatActivity {
                 "com.trajets.galsync"
         );
 
-        // Vérifier si le compte existe déjà
         android.accounts.Account[] existingAccounts = accountManager.getAccountsByType("com.trajets.galsync");
 
         if (existingAccounts.length == 0) {
-            // Créer le compte
             boolean accountCreated = accountManager.addAccountExplicitly(account, null, null);
             if (accountCreated) {
                 Log.d(TAG, "Compte 'Fondation Trajets' créé avec succès");
-                Toast.makeText(this, "Compte Fondation Trajets créé", Toast.LENGTH_SHORT).show();
-
-                // Activer la synchronisation
                 android.content.ContentResolver.setIsSyncable(account, "com.android.contacts", 1);
                 android.content.ContentResolver.setSyncAutomatically(account, "com.android.contacts", false);
-            } else {
-                Log.e(TAG, "Échec de la création du compte");
             }
-        } else {
-            Log.d(TAG, "Compte 'Fondation Trajets' existe déjà");
         }
     }
 
     private void scheduleAutoSync() {
+        if (!settingsManager.isSyncEnabled()) {
+            androidx.work.WorkManager.getInstance(this).cancelUniqueWork("contact_sync");
+            Log.d(TAG, "Synchronisation automatique désactivée");
+            return;
+        }
+
+        int intervalHours = settingsManager.getSyncIntervalHours();
+
         androidx.work.PeriodicWorkRequest syncWorkRequest =
                 new androidx.work.PeriodicWorkRequest.Builder(
                         com.trajets.galsync.sync.SyncWorker.class,
-                        1, java.util.concurrent.TimeUnit.DAYS
+                        intervalHours, java.util.concurrent.TimeUnit.HOURS
                 )
                         .addTag("auto_sync")
                         .setConstraints(
@@ -362,10 +336,10 @@ public class MainActivity extends AppCompatActivity {
 
         androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork(
                 "contact_sync",
-                androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+                androidx.work.ExistingPeriodicWorkPolicy.REPLACE,
                 syncWorkRequest
         );
 
-        Log.d(TAG, "Synchronisation automatique quotidienne programmée");
+        Log.d(TAG, "Synchronisation automatique programmée toutes les " + intervalHours + " heures");
     }
 }
