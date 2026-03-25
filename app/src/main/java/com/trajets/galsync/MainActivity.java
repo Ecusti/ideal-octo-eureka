@@ -1,6 +1,7 @@
 package com.trajets.galsync;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.util.Log;
@@ -15,18 +16,23 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.trajets.galsync.auth.AuthManager;
+import com.trajets.galsync.settings.SettingsActivity;
+import com.trajets.galsync.settings.SettingsManager;
 import com.trajets.galsync.sync.ContactSyncManager;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "GalSync";
     private static final int PERMISSIONS_REQUEST_CODE = 100;
+    private static final int SETTINGS_REQUEST_CODE = 200;
 
     private AuthManager authManager;
     private ContactSyncManager syncManager;
+    private SettingsManager settingsManager;
 
     private Button btnLogin;
     private Button btnSync;
     private Button btnLogout;
+    private Button btnSettings;
     private TextView tvStatus;
     private ProgressBar progressBar;
 
@@ -42,11 +48,15 @@ public class MainActivity extends AppCompatActivity {
         // Programmer la synchronisation automatique quotidienne
         scheduleAutoSync();
 
+        settingsManager = new SettingsManager(this);
+
         initializeViews();
         initializeManagers();
 
         // Vérifier si un utilisateur est déjà connecté
-        checkExistingAccount();
+        if (settingsManager.isConfigured()) {
+            checkExistingAccount();
+        }
 
         checkPermissions();
 
@@ -120,6 +130,14 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        btnSettings = findViewById(R.id.btn_settings);
+        btnSettings.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
+                startActivityForResult(intent, SETTINGS_REQUEST_CODE);
+            }
+        });
+
         Log.d(TAG, "=== initializeViews END ===");
     }
 
@@ -172,6 +190,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void performLogin() {
         Log.d(TAG, "performLogin appelé");
+        if (!settingsManager.isConfigured()) {
+            Toast.makeText(this, R.string.settings_not_configured, Toast.LENGTH_LONG).show();
+            return;
+        }
         setLoading(true);
         tvStatus.setText("Connexion en cours...");
 
@@ -259,13 +281,30 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == SETTINGS_REQUEST_CODE && resultCode == RESULT_OK) {
+            // Settings changed, reinitialize managers
+            initializeManagers();
+            if (settingsManager.isConfigured()) {
+                checkExistingAccount();
+            }
+            updateUI();
+        }
+    }
+
     private void updateUI() {
-        boolean isSignedIn = authManager.isSignedIn();
-        btnLogin.setEnabled(!isSignedIn);
+        boolean configured = settingsManager.isConfigured();
+        boolean isSignedIn = configured && authManager.isSignedIn();
+
+        btnLogin.setEnabled(configured && !isSignedIn);
         btnSync.setEnabled(isSignedIn);
         btnLogout.setEnabled(isSignedIn);
 
-        if (isSignedIn) {
+        if (!configured) {
+            tvStatus.setText(R.string.settings_not_configured);
+        } else if (isSignedIn) {
             tvStatus.setText("Connecté - Prêt à synchroniser");
         } else {
             tvStatus.setText("Non connecté");

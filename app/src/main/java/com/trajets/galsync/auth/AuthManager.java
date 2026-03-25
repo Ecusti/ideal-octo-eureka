@@ -12,6 +12,9 @@ import com.microsoft.identity.client.PublicClientApplication;
 import com.microsoft.identity.client.SilentAuthenticationCallback;
 import com.microsoft.identity.client.exception.MsalException;
 import com.trajets.galsync.R;
+import com.trajets.galsync.settings.SettingsManager;
+
+import java.io.File;
 
 public class AuthManager {
     private static final String TAG = "AuthManager";
@@ -41,22 +44,36 @@ public class AuthManager {
         isInitializing = true;
         Log.d(TAG, "Démarrage de l'initialisation MSAL...");
 
-        PublicClientApplication.createSingleAccountPublicClientApplication(
-                activity,
-                R.raw.auth_config,
+        SettingsManager settingsManager = new SettingsManager(activity);
+
+        IPublicClientApplication.ISingleAccountApplicationCreatedListener listener =
                 new IPublicClientApplication.ISingleAccountApplicationCreatedListener() {
                     public void onCreated(ISingleAccountPublicClientApplication application) {
                         msalApp = application;
                         isInitializing = false;
-                        Log.d(TAG, "✓ MSAL initialisé avec succès");
+                        Log.d(TAG, "MSAL initialisé avec succès");
                     }
 
                     public void onError(MsalException exception) {
                         isInitializing = false;
-                        Log.e(TAG, "✗ Erreur initialisation MSAL", exception);
+                        Log.e(TAG, "Erreur initialisation MSAL", exception);
                     }
-                }
-        );
+                };
+
+        if (settingsManager.isConfigured()) {
+            File configFile = settingsManager.generateAuthConfig();
+            if (configFile != null && configFile.exists()) {
+                Log.d(TAG, "Utilisation de la configuration dynamique Entra ID");
+                PublicClientApplication.createSingleAccountPublicClientApplication(
+                        activity, configFile, listener);
+                return;
+            }
+        }
+
+        // Fallback: use bundled auth_config if available
+        Log.d(TAG, "Utilisation de la configuration auth_config intégrée");
+        PublicClientApplication.createSingleAccountPublicClientApplication(
+                activity, R.raw.auth_config, listener);
     }
 
     public void checkSignedInAccount(final AuthCallback callback) {

@@ -8,4 +8,23 @@
     <string name="status_connected">Connecté - Prêt à synchroniser</string>
     <string name="status_syncing">Synchronisation en cours...</string>
     <string name="app_description">Synchronisation des contacts Azure Entra ID de la Fondation Trajets</string>
+    <string name="btn_settings">Paramètres</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Paramètres Entra ID</string>
+    <string name="settings_section_entra">Application Entra ID</string>
+    <string name="settings_section_entra_desc">Configurez les identifiants de votre application Azure Entra ID (portail Azure > Inscriptions d\'applications).</string>
+    <string name="settings_client_id">ID de l\'application (Client ID) *</string>
+    <string name="settings_tenant_id">ID du locataire (Tenant ID) *</string>
+    <string name="settings_redirect_uri">URI de redirection (optionnel)</string>
+    <string name="settings_section_scoping">Filtrage des utilisateurs</string>
+    <string name="settings_section_scoping_desc">Limitez la synchronisation à un groupe de sécurité spécifique ou filtrez par attribut utilisateur. Ces options sont facultatives.</string>
+    <string name="settings_security_group_id">ID du groupe de sécurité (optionnel)</string>
+    <string name="settings_filter_attribute">Attribut de filtrage (ex: department, companyName)</string>
+    <string name="settings_filter_value">Valeur de l\'attribut</string>
+    <string name="settings_or_label">-- ou filtrer par attribut --</string>
+    <string name="settings_save">Enregistrer</string>
+    <string name="settings_saved">Paramètres enregistrés</string>
+    <string name="settings_error_required">L\'ID client et l\'ID du locataire sont obligatoires</string>
+    <string name="settings_not_configured">Veuillez configurer les paramètres Entra ID</string>
 </resources>
