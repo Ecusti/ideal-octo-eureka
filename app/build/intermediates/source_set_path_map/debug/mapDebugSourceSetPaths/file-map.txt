@@ -1,10 +1,10 @@
-com.trajets.galsync.app-pngs-0 C:\AndroidProjects\GalSync\app\build\generated\res\pngs\debug
-com.trajets.galsync.app-resValues-1 C:\AndroidProjects\GalSync\app\build\generated\res\resValues\debug
-com.trajets.galsync.app-mergeDebugResources-2 C:\AndroidProjects\GalSync\app\build\intermediates\incremental\debug\mergeDebugResources\merged.dir
-com.trajets.galsync.app-mergeDebugResources-3 C:\AndroidProjects\GalSync\app\build\intermediates\incremental\debug\mergeDebugResources\stripped.dir
-com.trajets.galsync.app-debug-4 C:\AndroidProjects\GalSync\app\build\intermediates\merged_res\debug\mergeDebugResources
-com.trajets.galsync.app-debug-5 C:\AndroidProjects\GalSync\app\src\debug\res
-com.trajets.galsync.app-main-6 C:\AndroidProjects\GalSync\app\src\main\res
+com.trajets.galsync.app-pngs-0 C:\Dev\AndroidProjects\GalSync\app\build\generated\res\pngs\debug
+com.trajets.galsync.app-resValues-1 C:\Dev\AndroidProjects\GalSync\app\build\generated\res\resValues\debug
+com.trajets.galsync.app-mergeDebugResources-2 C:\Dev\AndroidProjects\GalSync\app\build\intermediates\incremental\debug\mergeDebugResources\merged.dir
+com.trajets.galsync.app-mergeDebugResources-3 C:\Dev\AndroidProjects\GalSync\app\build\intermediates\incremental\debug\mergeDebugResources\stripped.dir
+com.trajets.galsync.app-debug-4 C:\Dev\AndroidProjects\GalSync\app\build\intermediates\merged_res\debug\mergeDebugResources
+com.trajets.galsync.app-debug-5 C:\Dev\AndroidProjects\GalSync\app\src\debug\res
+com.trajets.galsync.app-main-6 C:\Dev\AndroidProjects\GalSync\app\src\main\res
 com.trajets.galsync.app-work-runtime-2.9.1-7 C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\01b91caaba38e4932bb67565600a3726\transformed\work-runtime-2.9.1\res
 com.trajets.galsync.app-drawerlayout-1.1.1-8 C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\031730afada00946ab3facfeaf38d11a\transformed\drawerlayout-1.1.1\res
 com.trajets.galsync.app-jetified-lifecycle-viewmodel-savedstate-2.8.7-9 C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\036107b98dae862350f334d7463c9547\transformed\jetified-lifecycle-viewmodel-savedstate-2.8.7\res

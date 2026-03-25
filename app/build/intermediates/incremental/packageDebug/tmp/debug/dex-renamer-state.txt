@@ -1,18 +1,18 @@
-#Thu Mar 12 15:29:35 CET 2026
-base.0=C\:\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes.dex
-base.1=C\:\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\0\\classes.dex
-base.10=C\:\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes4.dex
-base.11=C\:\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes5.dex
-base.12=C\:\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes6.dex
-base.13=C\:\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes7.dex
-base.2=C\:\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\13\\classes.dex
-base.3=C\:\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\14\\classes.dex
-base.4=C\:\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\15\\classes.dex
-base.5=C\:\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\2\\classes.dex
-base.6=C\:\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\3\\classes.dex
-base.7=C\:\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\4\\classes.dex
-base.8=C\:\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes2.dex
-base.9=C\:\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes3.dex
+#Wed Mar 25 12:52:21 CET 2026
+base.0=C\:\\Dev\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes.dex
+base.1=C\:\\Dev\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\0\\classes.dex
+base.10=C\:\\Dev\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes4.dex
+base.11=C\:\\Dev\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes5.dex
+base.12=C\:\\Dev\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes6.dex
+base.13=C\:\\Dev\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes7.dex
+base.2=C\:\\Dev\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\13\\classes.dex
+base.3=C\:\\Dev\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\14\\classes.dex
+base.4=C\:\\Dev\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\15\\classes.dex
+base.5=C\:\\Dev\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\2\\classes.dex
+base.6=C\:\\Dev\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\3\\classes.dex
+base.7=C\:\\Dev\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\4\\classes.dex
+base.8=C\:\\Dev\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes2.dex
+base.9=C\:\\Dev\\AndroidProjects\\GalSync\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes3.dex
 path.0=classes.dex
 path.1=0/classes.dex
 path.10=classes4.dex

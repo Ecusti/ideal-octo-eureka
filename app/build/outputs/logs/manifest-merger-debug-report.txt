@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:2:1-73:12
-INJECTED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:2:1-73:12
-INJECTED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:2:1-73:12
-INJECTED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:2:1-73:12
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:2:1-73:12
+INJECTED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:2:1-73:12
+INJECTED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:2:1-73:12
+INJECTED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:2:1-73:12
 MERGED from [androidx.databinding:viewbinding:8.7.3] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\c1db4b4f00768dd9431e24b6636bf404\transformed\jetified-viewbinding-8.7.3\AndroidManifest.xml:2:1-7:12
 MERGED from [com.google.android.material:material:1.12.0] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\0c904728dc3a8d192cc0c0faeb598900\transformed\material-1.12.0\AndroidManifest.xml:17:1-24:12
 MERGED from [com.microsoft.identity.client:msal:8.0.2] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\7feebb3d8f1300906693a01ff2882e6c\transformed\jetified-msal-8.0.2\AndroidManifest.xml:2:1-40:12
@@ -72,25 +72,25 @@ MERGED from [androidx.print:print:1.0.0] C:\Users\FaustinoGarcia\.gradle\caches\
 MERGED from [androidx.annotation:annotation-experimental:1.4.1] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\566028a2fb2513ee55251360c2e88f68\transformed\jetified-annotation-experimental-1.4.1\AndroidManifest.xml:2:1-7:12
 MERGED from [com.yubico.yubikit:android:2.5.0] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\83ca4a837674a855c54415dccf3c1d45\transformed\jetified-android-2.5.0\AndroidManifest.xml:2:1-29:12
 	package
-		INJECTED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml
+		INJECTED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml
 	android:versionName
-		INJECTED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml
+		INJECTED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml
 	xmlns:tools
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:3:5-51
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:3:5-51
 	android:versionCode
-		INJECTED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml
+		INJECTED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml
 	xmlns:android
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:2:11-69
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:2:11-69
 uses-permission#android.permission.INTERNET
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:5:5-67
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:5:5-67
 MERGED from [com.microsoft.identity.client:msal:8.0.2] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\7feebb3d8f1300906693a01ff2882e6c\transformed\jetified-msal-8.0.2\AndroidManifest.xml:7:5-67
 MERGED from [com.microsoft.identity.client:msal:8.0.2] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\7feebb3d8f1300906693a01ff2882e6c\transformed\jetified-msal-8.0.2\AndroidManifest.xml:7:5-67
 MERGED from [com.microsoft.identity:common:23.0.2] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\0986f467a8c8239ac172ba8bcc19f2cc\transformed\jetified-common-23.0.2\AndroidManifest.xml:9:5-67
 MERGED from [com.microsoft.identity:common:23.0.2] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\0986f467a8c8239ac172ba8bcc19f2cc\transformed\jetified-common-23.0.2\AndroidManifest.xml:9:5-67
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:5:22-64
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:5:22-64
 uses-permission#android.permission.ACCESS_NETWORK_STATE
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:6:5-79
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:6:5-79
 MERGED from [com.microsoft.identity.client:msal:8.0.2] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\7feebb3d8f1300906693a01ff2882e6c\transformed\jetified-msal-8.0.2\AndroidManifest.xml:8:5-79
 MERGED from [com.microsoft.identity.client:msal:8.0.2] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\7feebb3d8f1300906693a01ff2882e6c\transformed\jetified-msal-8.0.2\AndroidManifest.xml:8:5-79
 MERGED from [com.microsoft.identity:common:23.0.2] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\0986f467a8c8239ac172ba8bcc19f2cc\transformed\jetified-common-23.0.2\AndroidManifest.xml:10:5-79
@@ -98,42 +98,42 @@ MERGED from [com.microsoft.identity:common:23.0.2] C:\Users\FaustinoGarcia\.grad
 MERGED from [androidx.work:work-runtime:2.9.1] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\01b91caaba38e4932bb67565600a3726\transformed\work-runtime-2.9.1\AndroidManifest.xml:24:5-79
 MERGED from [androidx.work:work-runtime:2.9.1] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\01b91caaba38e4932bb67565600a3726\transformed\work-runtime-2.9.1\AndroidManifest.xml:24:5-79
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:6:22-76
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:6:22-76
 uses-permission#android.permission.READ_CONTACTS
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:7:5-72
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:7:5-72
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:7:22-69
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:7:22-69
 uses-permission#android.permission.WRITE_CONTACTS
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:8:5-73
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:8:5-73
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:8:22-70
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:8:22-70
 uses-permission#android.permission.GET_ACCOUNTS
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:9:5-71
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:9:5-71
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:9:22-68
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:9:22-68
 uses-permission#android.permission.AUTHENTICATE_ACCOUNTS
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:10:5-80
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:10:5-80
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:10:22-77
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:10:22-77
 uses-permission#android.permission.MANAGE_ACCOUNTS
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:11:5-74
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:11:5-74
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:11:22-71
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:11:22-71
 uses-permission#android.permission.USE_CREDENTIALS
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:12:5-74
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:12:5-74
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:12:22-71
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:12:22-71
 uses-permission#android.permission.READ_SYNC_SETTINGS
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:13:5-77
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:13:5-77
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:13:22-74
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:13:22-74
 uses-permission#android.permission.WRITE_SYNC_SETTINGS
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:14:5-78
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:14:5-78
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:14:22-75
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:14:22-75
 application
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:16:5-71:19
-INJECTED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:16:5-71:19
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:16:5-71:19
+INJECTED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:16:5-71:19
 MERGED from [com.google.android.material:material:1.12.0] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\0c904728dc3a8d192cc0c0faeb598900\transformed\material-1.12.0\AndroidManifest.xml:22:5-20
 MERGED from [com.google.android.material:material:1.12.0] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\0c904728dc3a8d192cc0c0faeb598900\transformed\material-1.12.0\AndroidManifest.xml:22:5-20
 MERGED from [com.microsoft.identity.client:msal:8.0.2] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\7feebb3d8f1300906693a01ff2882e6c\transformed\jetified-msal-8.0.2\AndroidManifest.xml:10:5-38:19
@@ -173,111 +173,111 @@ MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] C:\Users\Fa
 MERGED from [com.yubico.yubikit:android:2.5.0] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\83ca4a837674a855c54415dccf3c1d45\transformed\jetified-android-2.5.0\AndroidManifest.xml:16:5-27:19
 MERGED from [com.yubico.yubikit:android:2.5.0] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\83ca4a837674a855c54415dccf3c1d45\transformed\jetified-android-2.5.0\AndroidManifest.xml:16:5-27:19
 	android:extractNativeLibs
-		INJECTED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml
+		INJECTED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml
 	android:appComponentFactory
 		ADDED from [androidx.core:core:1.15.0] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\7e4d4eccda6f66c7d2cf0c3157e54873\transformed\core-1.15.0\AndroidManifest.xml:28:18-86
 	android:supportsRtl
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:21:9-35
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:21:9-35
 	android:label
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:19:9-41
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:19:9-41
 	android:roundIcon
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:20:9-54
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:20:9-54
 	tools:targetApi
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:23:9-29
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:23:9-29
 	android:icon
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:18:9-43
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:18:9-43
 	android:allowBackup
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:17:9-35
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:17:9-35
 	android:theme
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:22:9-45
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:22:9-45
 activity#com.trajets.galsync.MainActivity
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:25:9-32:20
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:25:9-32:20
 	android:exported
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:27:13-36
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:27:13-36
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:26:13-41
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:26:13-41
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:28:13-31:29
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:28:13-31:29
 action#android.intent.action.MAIN
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:29:17-69
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:29:17-69
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:29:25-66
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:29:25-66
 category#android.intent.category.LAUNCHER
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:30:17-77
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:30:17-77
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:30:27-74
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:30:27-74
 activity#com.microsoft.identity.client.BrowserTabActivity
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:34:9-45:20
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:34:9-45:20
 MERGED from [com.microsoft.identity.client:msal:8.0.2] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\7feebb3d8f1300906693a01ff2882e6c\transformed\jetified-msal-8.0.2\AndroidManifest.xml:31:9-34:39
 MERGED from [com.microsoft.identity.client:msal:8.0.2] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\7feebb3d8f1300906693a01ff2882e6c\transformed\jetified-msal-8.0.2\AndroidManifest.xml:31:9-34:39
 	android:exported
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:35:13-36
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:35:13-36
 	android:configChanges
 		ADDED from [com.microsoft.identity.client:msal:8.0.2] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\7feebb3d8f1300906693a01ff2882e6c\transformed\jetified-msal-8.0.2\AndroidManifest.xml:33:13-106
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:34:19-82
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:34:19-82
 intent-filter#action:name:android.intent.action.VIEW+category:name:android.intent.category.BROWSABLE+category:name:android.intent.category.DEFAULT+data:host:com.trajets.galsync+data:path:/LB/rljQKsdgZjjwJG1HL0VwoNhU=+data:scheme:msauth
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:36:13-44:29
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:36:13-44:29
 action#android.intent.action.VIEW
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:37:17-69
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:37:17-69
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:37:25-66
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:37:25-66
 category#android.intent.category.DEFAULT
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:38:17-76
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:38:17-76
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:38:27-73
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:38:27-73
 category#android.intent.category.BROWSABLE
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:39:17-78
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:39:17-78
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:39:27-75
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:39:27-75
 data
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:40:17-43:47
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:40:17-43:47
 	android:path
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:42:21-65
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:42:21-65
 	android:host
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:41:21-55
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:41:21-55
 	android:scheme
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:43:21-44
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:43:21-44
 service#com.trajets.galsync.authenticator.AuthenticatorService
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:48:9-57:19
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:48:9-57:19
 	android:exported
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:50:13-36
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:50:13-36
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:49:13-63
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:49:13-63
 intent-filter#action:name:android.accounts.AccountAuthenticator
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:51:13-53:29
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:51:13-53:29
 action#android.accounts.AccountAuthenticator
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:52:17-80
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:52:17-80
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:52:25-77
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:52:25-77
 meta-data#android.accounts.AccountAuthenticator
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:54:13-56:57
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:54:13-56:57
 	android:resource
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:56:17-54
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:56:17-54
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:55:17-69
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:55:17-69
 service#com.trajets.galsync.authenticator.SyncService
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:60:9-69:19
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:60:9-69:19
 	android:exported
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:62:13-36
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:62:13-36
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:61:13-54
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:61:13-54
 intent-filter#action:name:android.content.SyncAdapter
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:63:13-65:29
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:63:13-65:29
 action#android.content.SyncAdapter
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:64:17-70
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:64:17-70
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:64:25-67
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:64:25-67
 meta-data#android.content.SyncAdapter
-ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:66:13-68:55
+ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:66:13-68:55
 	android:resource
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:68:17-52
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:68:17-52
 	android:name
-		ADDED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:67:17-59
+		ADDED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml:67:17-59
 uses-sdk
-INJECTED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml reason: use-sdk injection requested
-INJECTED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml
-INJECTED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml
+INJECTED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml
+INJECTED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml
 MERGED from [androidx.databinding:viewbinding:8.7.3] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\c1db4b4f00768dd9431e24b6636bf404\transformed\jetified-viewbinding-8.7.3\AndroidManifest.xml:5:5-44
 MERGED from [androidx.databinding:viewbinding:8.7.3] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\c1db4b4f00768dd9431e24b6636bf404\transformed\jetified-viewbinding-8.7.3\AndroidManifest.xml:5:5-44
 MERGED from [com.google.android.material:material:1.12.0] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\0c904728dc3a8d192cc0c0faeb598900\transformed\material-1.12.0\AndroidManifest.xml:20:5-44
@@ -415,9 +415,9 @@ MERGED from [com.yubico.yubikit:android:2.5.0] C:\Users\FaustinoGarcia\.gradle\c
 	tools:overrideLibrary
 		ADDED from [com.microsoft.identity:common:23.0.2] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\0986f467a8c8239ac172ba8bcc19f2cc\transformed\jetified-common-23.0.2\AndroidManifest.xml:7:9-148
 	android:targetSdkVersion
-		INJECTED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml
+		INJECTED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml
 	android:minSdkVersion
-		INJECTED from C:\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml
+		INJECTED from C:\Dev\AndroidProjects\GalSync\app\src\main\AndroidManifest.xml
 activity#com.microsoft.identity.common.internal.providers.oauth2.AuthorizationActivity
 ADDED from [com.microsoft.identity.client:msal:8.0.2] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\7feebb3d8f1300906693a01ff2882e6c\transformed\jetified-msal-8.0.2\AndroidManifest.xml:13:9-17:47
 MERGED from [com.microsoft.identity:common:23.0.2] C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\0986f467a8c8239ac172ba8bcc19f2cc\transformed\jetified-common-23.0.2\AndroidManifest.xml:46:9-48:118
