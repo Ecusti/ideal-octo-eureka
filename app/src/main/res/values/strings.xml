@@ -27,4 +27,19 @@
     <string name="settings_saved">Paramètres enregistrés</string>
     <string name="settings_error_required">L\'ID client et l\'ID du locataire sont obligatoires</string>
     <string name="settings_not_configured">Veuillez configurer les paramètres Entra ID</string>
+
+    <!-- Sync status -->
+    <string name="settings_section_sync">Synchronisation automatique</string>
+    <string name="settings_sync_enabled">Synchronisation activée</string>
+    <string name="settings_sync_interval">Fréquence de synchronisation</string>
+    <string name="settings_section_sync_status">État de la synchronisation</string>
+    <string name="settings_sync_status_label">État :</string>
+    <string name="settings_sync_status_enabled">Activée</string>
+    <string name="settings_sync_status_disabled">Désactivée</string>
+    <string name="settings_last_success_label">Dernière synchronisation réussie :</string>
+    <string name="settings_last_success_never">Jamais</string>
+    <string name="settings_last_success_format">%1$s (%2$d contacts)</string>
+    <string name="settings_last_error_label">Dernière erreur :</string>
+    <string name="settings_last_error_none">Aucune</string>
+    <string name="settings_last_error_format">%1$s — %2$s</string>
 </resources>
