@@ -8,9 +8,12 @@ import android.util.Log;
 
 import com.trajets.galsync.auth.AuthManager;
 import com.trajets.galsync.models.EntraUser;
+import com.trajets.galsync.settings.SettingsManager;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -21,6 +24,7 @@ public class ContactSyncManager {
 
     private final Context context;
     private final AuthManager authManager;
+    private final SettingsManager settingsManager;
     private final ExecutorService executor;
 
     public interface SyncCallback {
@@ -32,6 +36,7 @@ public class ContactSyncManager {
     public ContactSyncManager(Context context) {
         this.context = context;
         this.authManager = new AuthManager((android.app.Activity) context);
+        this.settingsManager = new SettingsManager(context);
         this.executor = Executors.newSingleThreadExecutor();
     }
 
@@ -274,8 +279,23 @@ public class ContactSyncManager {
                     .writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
                     .build();
 
-            // Récupérer tous les utilisateurs SANS expand pour éviter les erreurs
-            String url = "https://graph.microsoft.com/v1.0/users?$filter=accountEnabled eq true&$select=id,displayName,mail,businessPhones,mobilePhone,jobTitle,department,officeLocation,userPrincipalName&$top=999";
+            // If a security group is configured, fetch group members instead
+            Set<String> groupMemberIds = null;
+            if (settingsManager.hasGroupFilter()) {
+                groupMemberIds = fetchGroupMemberIds(client, accessToken, settingsManager.getSecurityGroupId().trim());
+                Log.d(TAG, "Filtre par groupe de sécurité: " + groupMemberIds.size() + " membres");
+            }
+
+            // Build URL with optional attribute filter
+            String url;
+            if (settingsManager.hasAttributeFilter()) {
+                String attr = settingsManager.getFilterAttribute().trim();
+                String val = settingsManager.getFilterValue().trim();
+                url = "https://graph.microsoft.com/v1.0/users?$filter=accountEnabled eq true and " + attr + " eq '" + val + "'&$select=id,displayName,mail,businessPhones,mobilePhone,jobTitle,department,officeLocation,userPrincipalName&$top=999";
+                Log.d(TAG, "Filtre par attribut: " + attr + " = " + val);
+            } else {
+                url = "https://graph.microsoft.com/v1.0/users?$filter=accountEnabled eq true&$select=id,displayName,mail,businessPhones,mobilePhone,jobTitle,department,officeLocation,userPrincipalName&$top=999";
+            }
 
             Log.d(TAG, "URL: " + url);
 
@@ -366,6 +386,16 @@ public class ContactSyncManager {
 
                     if (shouldExclude) {
                         continue;
+                    }
+
+                    // FILTRE 5: Security group membership
+                    if (groupMemberIds != null) {
+                        String uid = userJson.has("id") && !userJson.get("id").isJsonNull()
+                                ? userJson.get("id").getAsString() : "";
+                        if (!groupMemberIds.contains(uid)) {
+                            Log.d(TAG, "Ignoré (pas dans le groupe de sécurité): " + displayName);
+                            continue;
+                        }
                     }
 
                     // Créer l'utilisateur - tous les filtres sont passés
@@ -525,6 +555,41 @@ public class ContactSyncManager {
         } catch (Exception e) {
             // Silencieux
         }
+    }
+
+    private Set<String> fetchGroupMemberIds(okhttp3.OkHttpClient client, String accessToken, String groupId) {
+        Set<String> memberIds = new HashSet<>();
+        try {
+            String url = "https://graph.microsoft.com/v1.0/groups/" + groupId + "/members?$select=id&$top=999";
+
+            okhttp3.Request request = new okhttp3.Request.Builder()
+                    .url(url)
+                    .addHeader("Authorization", "Bearer " + accessToken)
+                    .addHeader("Content-Type", "application/json")
+                    .build();
+
+            okhttp3.Response response = client.newCall(request).execute();
+
+            if (response.isSuccessful() && response.body() != null) {
+                String jsonResponse = response.body().string();
+                com.google.gson.JsonObject jsonObject = com.google.gson.JsonParser.parseString(jsonResponse).getAsJsonObject();
+
+                if (jsonObject.has("value")) {
+                    com.google.gson.JsonArray members = jsonObject.getAsJsonArray("value");
+                    for (int i = 0; i < members.size(); i++) {
+                        com.google.gson.JsonObject member = members.get(i).getAsJsonObject();
+                        if (member.has("id") && !member.get("id").isJsonNull()) {
+                            memberIds.add(member.get("id").getAsString());
+                        }
+                    }
+                }
+            } else {
+                Log.e(TAG, "Erreur lors de la récupération des membres du groupe: " + response.code());
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Erreur lors de la récupération des membres du groupe", e);
+        }
+        return memberIds;
     }
 
     private void fetchUserManager(okhttp3.OkHttpClient client, String accessToken, String userId, EntraUser entraUser) {
