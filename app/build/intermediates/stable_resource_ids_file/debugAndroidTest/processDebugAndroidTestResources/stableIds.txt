@@ -1,2 +1,0 @@
-com.trajets.galsync2.test:style/WhiteBackgroundTheme = 0x7f010001
-com.trajets.galsync2.test:style/WhiteBackgroundDialogTheme = 0x7f010000
