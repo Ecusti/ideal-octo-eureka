@@ -1,0 +1,3 @@
+com.trajets.galsync.test
+style WhiteBackgroundDialogTheme
+style WhiteBackgroundTheme

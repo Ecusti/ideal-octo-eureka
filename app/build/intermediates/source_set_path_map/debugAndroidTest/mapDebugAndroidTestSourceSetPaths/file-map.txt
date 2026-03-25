@@ -1,0 +1,6 @@
+com.trajets.galsync.test.app-androidTest-0 C:\AndroidProjects\GalSync\app\build\generated\res\resValues\androidTest\debug
+com.trajets.galsync.test.app-mergeDebugAndroidTestResources-1 C:\AndroidProjects\GalSync\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\merged.dir
+com.trajets.galsync.test.app-mergeDebugAndroidTestResources-2 C:\AndroidProjects\GalSync\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\stripped.dir
+com.trajets.galsync.test.app-debugAndroidTest-3 C:\AndroidProjects\GalSync\app\build\intermediates\merged_res\debugAndroidTest\mergeDebugAndroidTestResources
+com.trajets.galsync.test.app-jetified-core-1.6.1-4 C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\266e1759abb1875c9bc5db23eccf89bf\transformed\jetified-core-1.6.1\res
+com.trajets.galsync.test.app-jetified-tracing-1.2.0-5 C:\Users\FaustinoGarcia\.gradle\caches\8.9\transforms\9013f2fc24ce987326e26655fb0759fe\transformed\jetified-tracing-1.2.0\res

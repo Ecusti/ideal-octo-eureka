@@ -1,0 +1,17 @@
+// THIS IS LEGACY SETTING, NEET TO CHANGE TO MATCH SECRET IN .gitignore/secrets.properties
+{
+  "client_id": "XXXXXXXXXXXXXXXXXXX",
+  "authorization_user_agent": "DEFAULT",
+  "redirect_uri": "msauth:/XXXXXXXXXXXXXXXXXXX",
+  "broker_redirect_uri_registered": false,
+  "account_mode": "SINGLE",
+  "authorities": [
+    {
+      "type": "AAD",
+      "audience": {
+        "type": "XXXXXXXXXXXXXXXXXXX",
+        "tenant_id": "XXXXXXXXXXXXXXXXXXX"
+      }
+    }
+  ]
+}
