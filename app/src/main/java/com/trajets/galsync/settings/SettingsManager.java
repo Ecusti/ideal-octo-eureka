@@ -8,6 +8,7 @@ import java.io.FileWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.regex.Pattern;
 
 public class SettingsManager {
     private static final String PREFS_NAME = "galsync_entra_settings";
@@ -29,12 +30,29 @@ public class SettingsManager {
 
     private static final int DEFAULT_SYNC_INTERVAL_HOURS = 24;
 
+    // UUID pattern for validating Client ID, Tenant ID, Group ID
+    private static final Pattern UUID_PATTERN = Pattern.compile(
+            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
+
+    // Allowed attribute names for OData filtering (alphanumeric only)
+    private static final Pattern ATTRIBUTE_PATTERN = Pattern.compile("^[a-zA-Z][a-zA-Z0-9_]*$");
+
     private final SharedPreferences prefs;
     private final Context context;
 
     public SettingsManager(Context context) {
         this.context = context;
         this.prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+    }
+
+    // --- Validation ---
+
+    public static boolean isValidUuid(String value) {
+        return value != null && UUID_PATTERN.matcher(value.trim()).matches();
+    }
+
+    public static boolean isValidAttributeName(String value) {
+        return value != null && ATTRIBUTE_PATTERN.matcher(value.trim()).matches();
     }
 
     // --- Entra ID settings ---
@@ -90,19 +108,18 @@ public class SettingsManager {
     public boolean isConfigured() {
         String clientId = getClientId();
         String tenantId = getTenantId();
-        return clientId != null && !clientId.trim().isEmpty()
-                && tenantId != null && !tenantId.trim().isEmpty();
+        return isValidUuid(clientId) && isValidUuid(tenantId);
     }
 
     public boolean hasGroupFilter() {
         String groupId = getSecurityGroupId();
-        return groupId != null && !groupId.trim().isEmpty();
+        return isValidUuid(groupId);
     }
 
     public boolean hasAttributeFilter() {
         String attr = getFilterAttribute();
         String val = getFilterValue();
-        return attr != null && !attr.trim().isEmpty()
+        return isValidAttributeName(attr)
                 && val != null && !val.trim().isEmpty();
     }
 
@@ -177,22 +194,24 @@ public class SettingsManager {
             redirectUri = "msauth://com.trajets.galsync/LB%2FrljQKsdgZjjwJG1HL0VwoNhU%3D";
         }
 
-        String authorityUrl = "https://login.microsoftonline.com/" + tenantId;
+        // Use Gson to safely build the JSON and avoid injection
+        com.google.gson.JsonObject config = new com.google.gson.JsonObject();
+        config.addProperty("client_id", clientId);
+        config.addProperty("authorization_user_agent", "DEFAULT");
+        config.addProperty("redirect_uri", redirectUri);
+        config.addProperty("account_mode", "SINGLE");
+        config.addProperty("broker_redirect_uri_registered", false);
 
-        String json = "{\n"
-                + "  \"client_id\": \"" + clientId + "\",\n"
-                + "  \"authorization_user_agent\": \"DEFAULT\",\n"
-                + "  \"redirect_uri\": \"" + redirectUri + "\",\n"
-                + "  \"account_mode\": \"SINGLE\",\n"
-                + "  \"broker_redirect_uri_registered\": false,\n"
-                + "  \"authorities\": [\n"
-                + "    {\n"
-                + "      \"type\": \"AAD\",\n"
-                + "      \"authority_url\": \"" + authorityUrl + "\",\n"
-                + "      \"default\": true\n"
-                + "    }\n"
-                + "  ]\n"
-                + "}";
+        com.google.gson.JsonObject authority = new com.google.gson.JsonObject();
+        authority.addProperty("type", "AAD");
+        authority.addProperty("authority_url", "https://login.microsoftonline.com/" + tenantId);
+        authority.addProperty("default", true);
+
+        com.google.gson.JsonArray authorities = new com.google.gson.JsonArray();
+        authorities.add(authority);
+        config.add("authorities", authorities);
+
+        String json = new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(config);
 
         try {
             File configFile = new File(context.getFilesDir(), "auth_config_dynamic.json");

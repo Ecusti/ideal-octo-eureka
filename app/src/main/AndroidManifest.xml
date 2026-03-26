@@ -14,14 +14,14 @@
     <uses-permission android:name="android.permission.WRITE_SYNC_SETTINGS" />
 
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.GalSync"
         tools:targetApi="31">
-        
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -51,7 +51,8 @@
         <!-- Authenticator Service -->
         <service
             android:name=".authenticator.AuthenticatorService"
-            android:exported="true">
+            android:exported="true"
+            android:permission="android.permission.AUTHENTICATE_ACCOUNTS">
             <intent-filter>
                 <action android:name="android.accounts.AccountAuthenticator" />
             </intent-filter>
@@ -63,7 +64,8 @@
         <!-- Sync Service -->
         <service
             android:name=".authenticator.SyncService"
-            android:exported="true">
+            android:exported="true"
+            android:permission="android.permission.BIND_SYNC_ADAPTER">
             <intent-filter>
                 <action android:name="android.content.SyncAdapter" />
             </intent-filter>
