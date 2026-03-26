@@ -42,8 +42,8 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
-                    android:host="com.trajets.galsync"
-                    android:path="/LB/rljQKsdgZjjwJG1HL0VwoNhU="
+                    android:host="com.trajets.galsync2"
+                    android:path="/m45g9VrDROQ8Bqy9zxEAICN2KKA="
                     android:scheme="msauth" />
             </intent-filter>
         </activity>
