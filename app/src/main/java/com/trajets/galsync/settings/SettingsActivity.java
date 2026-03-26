@@ -29,7 +29,7 @@ public class SettingsActivity extends AppCompatActivity {
     private Spinner spinnerSyncInterval;
     private TextView tvSyncStatus;
     private TextView tvLastSuccess;
-    private TextView tvLastError;
+    private TextView tvLastStatus;
     private Button btnSave;
 
     // Interval options in hours, matching the spinner entries
@@ -71,10 +71,9 @@ public class SettingsActivity extends AppCompatActivity {
         spinnerSyncInterval = findViewById(R.id.spinner_sync_interval);
         tvSyncStatus = findViewById(R.id.tv_sync_status);
         tvLastSuccess = findViewById(R.id.tv_last_success);
-        tvLastError = findViewById(R.id.tv_last_error);
+        tvLastStatus = findViewById(R.id.tv_last_status);
         btnSave = findViewById(R.id.btn_save_settings);
 
-        // Setup interval spinner
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
                 android.R.layout.simple_spinner_item, INTERVAL_LABELS);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -98,9 +97,8 @@ public class SettingsActivity extends AppCompatActivity {
 
         switchSyncEnabled.setChecked(settingsManager.isSyncEnabled());
 
-        // Select the current interval in the spinner
         int currentInterval = settingsManager.getSyncIntervalHours();
-        int selectedIndex = 5; // Default to "Tous les jours" (24h)
+        int selectedIndex = 5; // Default to 24h
         for (int i = 0; i < INTERVAL_HOURS.length; i++) {
             if (INTERVAL_HOURS[i] == currentInterval) {
                 selectedIndex = i;
@@ -111,7 +109,6 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void loadSyncStatus() {
-        // Sync enabled/disabled status
         boolean enabled = settingsManager.isSyncEnabled();
         tvSyncStatus.setText(enabled
                 ? getString(R.string.settings_sync_status_enabled)
@@ -127,14 +124,20 @@ public class SettingsActivity extends AppCompatActivity {
             tvLastSuccess.setText(R.string.settings_last_success_never);
         }
 
-        // Last error
+        // Last status: show whichever happened most recently (success or error)
         long lastErrorTime = settingsManager.getLastSyncErrorTime();
-        if (lastErrorTime > 0) {
+        if (lastSuccessTime == 0 && lastErrorTime == 0) {
+            tvLastStatus.setText(R.string.settings_last_status_none);
+        } else if (lastSuccessTime >= lastErrorTime) {
+            // Last action was a success
+            String date = settingsManager.formatTimestamp(lastSuccessTime);
+            int count = settingsManager.getLastSyncSuccessCount();
+            tvLastStatus.setText(getString(R.string.settings_last_status_success, date, count));
+        } else {
+            // Last action was an error
             String date = settingsManager.formatTimestamp(lastErrorTime);
             String message = settingsManager.getLastSyncErrorMessage();
-            tvLastError.setText(getString(R.string.settings_last_error_format, date, message));
-        } else {
-            tvLastError.setText(R.string.settings_last_error_none);
+            tvLastStatus.setText(getString(R.string.settings_last_status_error, date, message));
         }
     }
 
@@ -142,16 +145,37 @@ public class SettingsActivity extends AppCompatActivity {
         String clientId = etClientId.getText().toString().trim();
         String tenantId = etTenantId.getText().toString().trim();
 
+        // Validate required fields
         if (clientId.isEmpty() || tenantId.isEmpty()) {
             Toast.makeText(this, R.string.settings_error_required, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        // Validate UUID format for Client ID and Tenant ID
+        if (!SettingsManager.isValidUuid(clientId) || !SettingsManager.isValidUuid(tenantId)) {
+            Toast.makeText(this, R.string.settings_validation_uuid, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        // Validate optional security group ID
+        String groupId = etSecurityGroupId.getText().toString().trim();
+        if (!groupId.isEmpty() && !SettingsManager.isValidUuid(groupId)) {
+            Toast.makeText(this, R.string.settings_validation_uuid, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        // Validate optional attribute name
+        String filterAttr = etFilterAttribute.getText().toString().trim();
+        if (!filterAttr.isEmpty() && !SettingsManager.isValidAttributeName(filterAttr)) {
+            Toast.makeText(this, R.string.settings_validation_attribute, Toast.LENGTH_LONG).show();
             return;
         }
 
         settingsManager.setClientId(clientId);
         settingsManager.setTenantId(tenantId);
         settingsManager.setRedirectUri(etRedirectUri.getText().toString().trim());
-        settingsManager.setSecurityGroupId(etSecurityGroupId.getText().toString().trim());
-        settingsManager.setFilterAttribute(etFilterAttribute.getText().toString().trim());
+        settingsManager.setSecurityGroupId(groupId);
+        settingsManager.setFilterAttribute(filterAttr);
         settingsManager.setFilterValue(etFilterValue.getText().toString().trim());
 
         settingsManager.setSyncEnabled(switchSyncEnabled.isChecked());
@@ -160,7 +184,6 @@ public class SettingsActivity extends AppCompatActivity {
             settingsManager.setSyncIntervalHours(INTERVAL_HOURS[selectedIndex]);
         }
 
-        // Generate the dynamic auth config file
         settingsManager.generateAuthConfig();
 
         Toast.makeText(this, R.string.settings_saved, Toast.LENGTH_SHORT).show();

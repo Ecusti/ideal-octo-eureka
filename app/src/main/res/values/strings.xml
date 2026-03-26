@@ -39,7 +39,10 @@
     <string name="settings_last_success_label">Dernière synchronisation réussie :</string>
     <string name="settings_last_success_never">Jamais</string>
     <string name="settings_last_success_format">%1$s (%2$d contacts)</string>
-    <string name="settings_last_error_label">Dernière erreur :</string>
-    <string name="settings_last_error_none">Aucune</string>
-    <string name="settings_last_error_format">%1$s — %2$s</string>
+    <string name="settings_last_status_label">Dernier statut :</string>
+    <string name="settings_last_status_none">Aucune synchronisation effectuée</string>
+    <string name="settings_last_status_success">%1$s — %2$d contacts synchronisés</string>
+    <string name="settings_last_status_error">%1$s — Erreur : %2$s</string>
+    <string name="settings_validation_uuid">Le format doit être un UUID valide (ex: 12345678-abcd-1234-abcd-123456789abc)</string>
+    <string name="settings_validation_attribute">L\'attribut doit contenir uniquement des lettres, chiffres et underscores</string>
 </resources>

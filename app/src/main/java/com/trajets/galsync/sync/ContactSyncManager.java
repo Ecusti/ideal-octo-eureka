@@ -361,7 +361,8 @@ public class ContactSyncManager {
             String url;
             if (settingsManager.hasAttributeFilter()) {
                 String attr = settingsManager.getFilterAttribute().trim();
-                String val = settingsManager.getFilterValue().trim();
+                // Sanitize filter value: escape single quotes for OData
+                String val = settingsManager.getFilterValue().trim().replace("'", "''");
                 url = "https://graph.microsoft.com/v1.0/users?$filter=accountEnabled eq true and " + attr + " eq '" + val + "'&$select=id,displayName,mail,businessPhones,mobilePhone,jobTitle,department,officeLocation,userPrincipalName&$top=999";
                 Log.d(TAG, "Filtre par attribut: " + attr + " = " + val);
             } else {
