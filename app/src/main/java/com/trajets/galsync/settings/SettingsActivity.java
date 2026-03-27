@@ -1,6 +1,7 @@
 package com.trajets.galsync.settings;
 
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -10,14 +11,23 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
+
+import com.google.android.gms.common.moduleinstall.ModuleInstall;
+import com.google.android.gms.common.moduleinstall.ModuleInstallRequest;
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanner;
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions;
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning;
+import com.google.mlkit.vision.barcode.common.Barcode;
 
 import com.trajets.galsync.R;
 
 public class SettingsActivity extends AppCompatActivity {
 
     private SettingsManager settingsManager;
+    private ConfigImporter configImporter;
 
     private EditText etClientId;
     private EditText etTenantId;
@@ -31,6 +41,8 @@ public class SettingsActivity extends AppCompatActivity {
     private TextView tvLastSuccess;
     private TextView tvLastStatus;
     private Button btnSave;
+    private Button btnImportQr;
+    private Button btnImportUrl;
 
     // Interval options in hours, matching the spinner entries
     private static final int[] INTERVAL_HOURS = {1, 2, 4, 6, 12, 24, 48};
@@ -55,6 +67,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
 
         settingsManager = new SettingsManager(this);
+        configImporter = new ConfigImporter(this);
         initializeViews();
         loadSettings();
         loadSyncStatus();
@@ -83,6 +96,23 @@ public class SettingsActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 saveSettings();
+            }
+        });
+
+        btnImportQr = findViewById(R.id.btn_import_qr);
+        btnImportUrl = findViewById(R.id.btn_import_url);
+
+        btnImportQr.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                scanQrCode();
+            }
+        });
+
+        btnImportUrl.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showUrlImportDialog();
             }
         });
     }
@@ -190,6 +220,85 @@ public class SettingsActivity extends AppCompatActivity {
         setResult(RESULT_OK);
         finish();
     }
+
+    private void scanQrCode() {
+        GmsBarcodeScannerOptions options = new GmsBarcodeScannerOptions.Builder()
+                .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                .enableAutoZoom()
+                .build();
+
+        GmsBarcodeScanner scanner = GmsBarcodeScanning.getClient(this, options);
+
+        // Ensure the scanner module is available
+        ModuleInstall.getClient(this)
+                .installModules(ModuleInstallRequest.newBuilder()
+                        .addApi(GmsBarcodeScanning.getClient(this))
+                        .build());
+
+        scanner.startScan()
+                .addOnSuccessListener(barcode -> {
+                    String rawValue = barcode.getRawValue();
+                    if (rawValue != null && !rawValue.isEmpty()) {
+                        handleScannedData(rawValue);
+                    }
+                })
+                .addOnFailureListener(e ->
+                        Toast.makeText(this,
+                                getString(R.string.settings_import_qr_unavailable),
+                                Toast.LENGTH_LONG).show())
+                .addOnCanceledListener(() -> { /* user cancelled, do nothing */ });
+    }
+
+    private void handleScannedData(String data) {
+        String trimmed = data.trim();
+
+        // If the QR code contains a URL, fetch the config from it
+        if (trimmed.startsWith("https://") || trimmed.startsWith("http://")) {
+            Toast.makeText(this, R.string.settings_import_loading, Toast.LENGTH_SHORT).show();
+            configImporter.importFromUrl(trimmed, importCallback);
+        } else {
+            // Otherwise treat as inline JSON
+            configImporter.importFromJson(trimmed, importCallback);
+        }
+    }
+
+    private void showUrlImportDialog() {
+        EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        input.setHint(R.string.settings_import_url_hint);
+        input.setPadding(48, 32, 48, 16);
+
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.settings_import_url_title)
+                .setView(input)
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    String url = input.getText().toString().trim();
+                    if (!url.isEmpty()) {
+                        Toast.makeText(this, R.string.settings_import_loading, Toast.LENGTH_SHORT).show();
+                        configImporter.importFromUrl(url, importCallback);
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private final ConfigImporter.ImportCallback importCallback = new ConfigImporter.ImportCallback() {
+        @Override
+        public void onSuccess(int fieldsImported) {
+            // Reload fields from settings to reflect imported values
+            loadSettings();
+            Toast.makeText(SettingsActivity.this,
+                    getString(R.string.settings_import_success, fieldsImported),
+                    Toast.LENGTH_LONG).show();
+        }
+
+        @Override
+        public void onError(String message) {
+            Toast.makeText(SettingsActivity.this,
+                    getString(R.string.settings_import_error, message),
+                    Toast.LENGTH_LONG).show();
+        }
+    };
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {

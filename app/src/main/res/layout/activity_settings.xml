@@ -136,8 +136,36 @@
             android:layout_height="wrap_content"
             android:text="@string/settings_section_entra_desc"
             android:textSize="13sp"
-            android:layout_marginBottom="16dp"
+            android:layout_marginBottom="12dp"
             android:textColor="?android:textColorSecondary" />
+
+        <!-- Import buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <Button
+                android:id="@+id/btn_import_qr"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:text="@string/settings_import_qr"
+                android:textSize="13sp" />
+
+            <Button
+                android:id="@+id/btn_import_url"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="4dp"
+                android:text="@string/settings_import_url"
+                android:textSize="13sp" />
+        </LinearLayout>
 
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
