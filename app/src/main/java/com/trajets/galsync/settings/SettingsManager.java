@@ -7,6 +7,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import android.util.Log;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.InputStream;
@@ -18,6 +20,7 @@ import java.util.Locale;
 import java.util.regex.Pattern;
 
 public class SettingsManager {
+    private static final String TAG = "SettingsManager";
     private static final String PREFS_NAME = "galsync_entra_settings";
 
     private static final String KEY_CLIENT_ID = "client_id";
@@ -209,7 +212,8 @@ public class SettingsManager {
      */
     public void loadDefaultsIfNeeded(int rawResourceId) {
         if (hasUserConfigured()) {
-            return; // User already saved or imported settings; don't overwrite.
+            Log.d(TAG, "loadDefaults: skipped — user has already configured settings");
+            return;
         }
 
         try {
@@ -221,10 +225,13 @@ public class SettingsManager {
             String clientId = getJsonString(obj, "client_id");
             String tenantId = getJsonString(obj, "tenant_id");
 
+            Log.d(TAG, "loadDefaults: client_id='" + clientId + "', tenant_id='" + tenantId + "'");
+
             // If the bundled config still has placeholder values, skip auto-fill.
             if (clientId == null || tenantId == null
                     || "PLACEHOLDER".equalsIgnoreCase(clientId)
                     || "PLACEHOLDER".equalsIgnoreCase(tenantId)) {
+                Log.d(TAG, "loadDefaults: skipped — PLACEHOLDER values detected");
                 return;
             }
 
@@ -238,6 +245,7 @@ public class SettingsManager {
                         String[] parts = url.split("microsoftonline.com/");
                         if (parts.length > 1 && !parts[1].isEmpty()) {
                             tenantId = parts[1].replace("/", "");
+                            Log.d(TAG, "loadDefaults: extracted tenant_id from authority_url: " + tenantId);
                         }
                     }
                 }
@@ -246,9 +254,15 @@ public class SettingsManager {
             // Apply bundled values to settings
             if (isValidUuid(clientId)) {
                 setClientId(clientId);
+                Log.d(TAG, "loadDefaults: set client_id");
+            } else {
+                Log.w(TAG, "loadDefaults: client_id is not a valid UUID, skipped");
             }
             if (isValidUuid(tenantId)) {
                 setTenantId(tenantId);
+                Log.d(TAG, "loadDefaults: set tenant_id");
+            } else {
+                Log.w(TAG, "loadDefaults: tenant_id is not a valid UUID, skipped");
             }
 
             String redirectUri = getJsonString(obj, "redirect_uri");
@@ -256,32 +270,37 @@ public class SettingsManager {
                     && !"PLACEHOLDER".equalsIgnoreCase(redirectUri)
                     && !redirectUri.contains("PLACEHOLDER")) {
                 setRedirectUri(redirectUri);
+                Log.d(TAG, "loadDefaults: set redirect_uri");
             }
 
             // GalSync-specific fields (prefixed with galsync_)
             String groupId = getJsonString(obj, "galsync_security_group_id");
             if (groupId != null && !groupId.isEmpty()) {
                 setSecurityGroupId(groupId);
+                Log.d(TAG, "loadDefaults: set security_group_id");
             }
 
             String filterAttr = getJsonString(obj, "galsync_filter_attribute");
             if (filterAttr != null && !filterAttr.isEmpty()) {
                 setFilterAttribute(filterAttr);
+                Log.d(TAG, "loadDefaults: set filter_attribute");
             }
 
             String filterVal = getJsonString(obj, "galsync_filter_value");
             if (filterVal != null && !filterVal.isEmpty()) {
                 setFilterValue(filterVal);
+                Log.d(TAG, "loadDefaults: set filter_value");
             }
 
-            // If at least client_id and tenant_id were valid, mark as configured
-            // so generateAuthConfig() can produce a usable MSAL config.
             if (isConfigured()) {
                 generateAuthConfig();
+                Log.d(TAG, "loadDefaults: configuration applied and auth config generated");
+            } else {
+                Log.w(TAG, "loadDefaults: client_id/tenant_id not valid — settings not fully configured");
             }
 
         } catch (Exception e) {
-            // Bundled file is missing or malformed — ignore silently.
+            Log.e(TAG, "loadDefaults: error reading bundled config", e);
         }
     }
 
