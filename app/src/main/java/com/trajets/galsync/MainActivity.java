@@ -44,6 +44,7 @@ public class MainActivity extends AppCompatActivity {
         createAccountIfNeeded();
 
         settingsManager = new SettingsManager(this);
+        settingsManager.loadDefaultsIfNeeded(R.raw.auth_config);
 
         initializeViews();
         initializeManagers();
