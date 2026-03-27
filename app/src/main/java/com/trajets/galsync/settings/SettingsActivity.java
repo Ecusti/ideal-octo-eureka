@@ -1,5 +1,6 @@
 package com.trajets.galsync.settings;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.MenuItem;
@@ -11,16 +12,13 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
 
-import com.google.android.gms.common.moduleinstall.ModuleInstall;
-import com.google.android.gms.common.moduleinstall.ModuleInstallRequest;
-import com.google.mlkit.vision.codescanner.GmsBarcodeScanner;
-import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions;
-import com.google.mlkit.vision.codescanner.GmsBarcodeScanning;
-import com.google.mlkit.vision.barcode.common.Barcode;
+import com.journeyapps.barcodescanner.ScanContract;
+import com.journeyapps.barcodescanner.ScanOptions;
 
 import com.trajets.galsync.R;
 
@@ -221,32 +219,21 @@ public class SettingsActivity extends AppCompatActivity {
         finish();
     }
 
+    private final ActivityResultLauncher<ScanOptions> qrScanLauncher =
+            registerForActivityResult(new ScanContract(), result -> {
+                String contents = result.getContents();
+                if (contents != null && !contents.isEmpty()) {
+                    handleScannedData(contents);
+                }
+            });
+
     private void scanQrCode() {
-        GmsBarcodeScannerOptions options = new GmsBarcodeScannerOptions.Builder()
-                .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
-                .enableAutoZoom()
-                .build();
-
-        GmsBarcodeScanner scanner = GmsBarcodeScanning.getClient(this, options);
-
-        // Ensure the scanner module is available
-        ModuleInstall.getClient(this)
-                .installModules(ModuleInstallRequest.newBuilder()
-                        .addApi(GmsBarcodeScanning.getClient(this))
-                        .build());
-
-        scanner.startScan()
-                .addOnSuccessListener(barcode -> {
-                    String rawValue = barcode.getRawValue();
-                    if (rawValue != null && !rawValue.isEmpty()) {
-                        handleScannedData(rawValue);
-                    }
-                })
-                .addOnFailureListener(e ->
-                        Toast.makeText(this,
-                                getString(R.string.settings_import_qr_unavailable),
-                                Toast.LENGTH_LONG).show())
-                .addOnCanceledListener(() -> { /* user cancelled, do nothing */ });
+        ScanOptions options = new ScanOptions();
+        options.setDesiredBarcodeFormats(ScanOptions.QR_CODE);
+        options.setPrompt(getString(R.string.settings_import_qr_prompt));
+        options.setBeepEnabled(false);
+        options.setOrientationLocked(false);
+        qrScanLauncher.launch(options);
     }
 
     private void handleScannedData(String data) {
@@ -284,11 +271,20 @@ public class SettingsActivity extends AppCompatActivity {
 
     private final ConfigImporter.ImportCallback importCallback = new ConfigImporter.ImportCallback() {
         @Override
-        public void onSuccess(int fieldsImported) {
-            // Reload fields from settings to reflect imported values
-            loadSettings();
+        public void onSuccess(ConfigImporter.ImportedConfig config) {
+            // Populate each EditText from the imported config.
+            // null = field was absent in the JSON → clear the field.
+            // non-null (even empty) = field was present → show the raw value.
+            // Validation happens only when the user taps Save.
+            etClientId.setText(config.clientId != null ? config.clientId : "");
+            etTenantId.setText(config.tenantId != null ? config.tenantId : "");
+            etRedirectUri.setText(config.redirectUri != null ? config.redirectUri : "");
+            etSecurityGroupId.setText(config.securityGroupId != null ? config.securityGroupId : "");
+            etFilterAttribute.setText(config.filterAttribute != null ? config.filterAttribute : "");
+            etFilterValue.setText(config.filterValue != null ? config.filterValue : "");
+
             Toast.makeText(SettingsActivity.this,
-                    getString(R.string.settings_import_success, fieldsImported),
+                    getString(R.string.settings_import_success, config.fieldCount()),
                     Toast.LENGTH_LONG).show();
         }
 

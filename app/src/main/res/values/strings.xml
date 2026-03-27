@@ -53,6 +53,7 @@
     <string name="settings_import_url_hint">https://example.com/galsync-config.json</string>
     <string name="settings_import_success">%1$d paramètres importés avec succès</string>
     <string name="settings_import_error">Erreur d\'importation : %1$s</string>
+    <string name="settings_import_qr_prompt">Scannez le QR code de configuration GalSync</string>
     <string name="settings_import_qr_unavailable">Le scanner de QR code n\'est pas disponible sur cet appareil</string>
     <string name="settings_import_loading">Importation en cours…</string>
 </resources>
