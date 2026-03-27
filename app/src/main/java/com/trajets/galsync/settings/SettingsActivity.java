@@ -271,11 +271,20 @@ public class SettingsActivity extends AppCompatActivity {
 
     private final ConfigImporter.ImportCallback importCallback = new ConfigImporter.ImportCallback() {
         @Override
-        public void onSuccess(int fieldsImported) {
-            // Reload fields from settings to reflect imported values
-            loadSettings();
+        public void onSuccess(ConfigImporter.ImportedConfig config) {
+            // Populate each EditText from the imported config.
+            // null = field was absent in the JSON → clear the field.
+            // non-null (even empty) = field was present → show the raw value.
+            // Validation happens only when the user taps Save.
+            etClientId.setText(config.clientId != null ? config.clientId : "");
+            etTenantId.setText(config.tenantId != null ? config.tenantId : "");
+            etRedirectUri.setText(config.redirectUri != null ? config.redirectUri : "");
+            etSecurityGroupId.setText(config.securityGroupId != null ? config.securityGroupId : "");
+            etFilterAttribute.setText(config.filterAttribute != null ? config.filterAttribute : "");
+            etFilterValue.setText(config.filterValue != null ? config.filterValue : "");
+
             Toast.makeText(SettingsActivity.this,
-                    getString(R.string.settings_import_success, fieldsImported),
+                    getString(R.string.settings_import_success, config.fieldCount()),
                     Toast.LENGTH_LONG).show();
         }
 
