@@ -7,7 +7,7 @@
     <string name="status_not_connected">Non connecté</string>
     <string name="status_connected">Connecté - Prêt à synchroniser</string>
     <string name="status_syncing">Synchronisation en cours...</string>
-    <string name="app_description">Synchronisation des contacts Azure Entra ID de la Fondation Trajets</string>
+    <string name="app_description">Synchronisation des contacts Azure Entra ID</string>
     <string name="btn_settings">Paramètres</string>
 
     <!-- Settings -->

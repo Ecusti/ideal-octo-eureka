@@ -1,7 +1,7 @@
 {
-  "client_id": "PLACEHOLDER",
-  "authorization_user_agent": "DEFAULT",
-  "redirect_uri": "msauth://com.trajets.galsync/PLACEHOLDER",
+  "client_id": "dc2c189b-e38e-48b7-a97c-17171c2e2b27",
+  "authorization_user_agent": "267a9269-1e1e-41ed-af11-0cb82800695a",
+  "redirect_uri": "msauth://com.trajets.galsync/LB%2FrljQKsdgZjjwJG1HL0VwoNhU%3D",
   "account_mode": "SINGLE",
   "broker_redirect_uri_registered": false,
   "authorities": [
