@@ -12,7 +12,6 @@ import com.microsoft.identity.client.ISingleAccountPublicClientApplication;
 import com.microsoft.identity.client.PublicClientApplication;
 import com.microsoft.identity.client.SilentAuthenticationCallback;
 import com.microsoft.identity.client.exception.MsalException;
-import com.trajets.galsync.R;
 import com.trajets.galsync.settings.SettingsManager;
 
 import java.io.File;
@@ -57,13 +56,34 @@ public class AuthManager {
             return;
         }
 
+        SettingsManager settingsManager = new SettingsManager(context);
+
+        // Don't attempt MSAL init if settings aren't configured yet.
+        // The bundled auth_config.json may contain PLACEHOLDER values whose
+        // redirect_uri won't match the AndroidManifest intent-filter, causing
+        // MSAL to throw a fatal MsalClientException.
+        if (!settingsManager.isConfigured()) {
+            Log.d(TAG, "Settings non configurés — MSAL non initialisé (l'utilisateur doit configurer les paramètres)");
+            msalInitError = "Paramètres Entra ID non configurés";
+            return;
+        }
+
         isInitializing = true;
         msalInitError = null;
         Log.d(TAG, "Démarrage de l'initialisation MSAL...");
 
-        SettingsManager settingsManager = new SettingsManager(context);
+        File configFile = settingsManager.generateAuthConfig();
+        if (configFile == null || !configFile.exists()) {
+            isInitializing = false;
+            msalInitError = "Impossible de générer le fichier de configuration MSAL";
+            Log.e(TAG, msalInitError);
+            return;
+        }
 
-        IPublicClientApplication.ISingleAccountApplicationCreatedListener successListener =
+        Log.d(TAG, "Utilisation de la configuration dynamique: " + configFile.getAbsolutePath());
+
+        PublicClientApplication.createSingleAccountPublicClientApplication(
+                context, configFile,
                 new IPublicClientApplication.ISingleAccountApplicationCreatedListener() {
                     public void onCreated(ISingleAccountPublicClientApplication application) {
                         msalApp = application;
@@ -77,50 +97,7 @@ public class AuthManager {
                         msalInitError = exception.getMessage();
                         Log.e(TAG, "Erreur initialisation MSAL: " + msalInitError, exception);
                     }
-                };
-
-        if (settingsManager.isConfigured()) {
-            File configFile = settingsManager.generateAuthConfig();
-            if (configFile != null && configFile.exists()) {
-                Log.d(TAG, "Utilisation de la configuration dynamique: " + configFile.getAbsolutePath());
-
-                // Try dynamic config first; if it fails, retry with bundled config
-                PublicClientApplication.createSingleAccountPublicClientApplication(
-                        context, configFile,
-                        new IPublicClientApplication.ISingleAccountApplicationCreatedListener() {
-                            public void onCreated(ISingleAccountPublicClientApplication application) {
-                                msalApp = application;
-                                isInitializing = false;
-                                msalInitError = null;
-                                Log.d(TAG, "MSAL initialisé avec succès (config dynamique)");
-                            }
-
-                            public void onError(MsalException exception) {
-                                Log.e(TAG, "Échec config dynamique: " + exception.getMessage()
-                                        + " — tentative avec config intégrée", exception);
-                                // Fallback: retry with the bundled raw resource
-                                try {
-                                    PublicClientApplication.createSingleAccountPublicClientApplication(
-                                            context, R.raw.auth_config, successListener);
-                                } catch (Exception e2) {
-                                    isInitializing = false;
-                                    msalInitError = exception.getMessage();
-                                    Log.e(TAG, "Échec config intégrée aussi: " + e2.getMessage());
-                                }
-                            }
-                        });
-                return;
-            } else {
-                Log.w(TAG, "Config dynamique non générée (configFile=" + configFile + ")");
-            }
-        } else {
-            Log.d(TAG, "Settings non configurés, utilisation config intégrée");
-        }
-
-        // Fallback: use bundled auth_config
-        Log.d(TAG, "Utilisation de la configuration auth_config intégrée");
-        PublicClientApplication.createSingleAccountPublicClientApplication(
-                context, R.raw.auth_config, successListener);
+                });
     }
 
     public void checkSignedInAccount(final AuthCallback callback) {
