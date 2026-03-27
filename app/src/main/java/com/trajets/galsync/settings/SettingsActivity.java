@@ -65,7 +65,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
 
         settingsManager = new SettingsManager(this);
-        configImporter = new ConfigImporter(this);
+        configImporter = new ConfigImporter();
         initializeViews();
         loadSettings();
         loadSyncStatus();
