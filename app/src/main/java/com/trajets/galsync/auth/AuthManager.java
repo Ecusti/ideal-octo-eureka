@@ -25,6 +25,7 @@ public class AuthManager {
     private Activity activity;
     private ISingleAccountPublicClientApplication msalApp;
     private String accessToken;
+    private String msalInitError;
     private boolean isInitializing = false;
 
     public interface AuthCallback {
@@ -57,38 +58,69 @@ public class AuthManager {
         }
 
         isInitializing = true;
+        msalInitError = null;
         Log.d(TAG, "Démarrage de l'initialisation MSAL...");
 
         SettingsManager settingsManager = new SettingsManager(context);
 
-        IPublicClientApplication.ISingleAccountApplicationCreatedListener listener =
+        IPublicClientApplication.ISingleAccountApplicationCreatedListener successListener =
                 new IPublicClientApplication.ISingleAccountApplicationCreatedListener() {
                     public void onCreated(ISingleAccountPublicClientApplication application) {
                         msalApp = application;
                         isInitializing = false;
+                        msalInitError = null;
                         Log.d(TAG, "MSAL initialisé avec succès");
                     }
 
                     public void onError(MsalException exception) {
                         isInitializing = false;
-                        Log.e(TAG, "Erreur initialisation MSAL", exception);
+                        msalInitError = exception.getMessage();
+                        Log.e(TAG, "Erreur initialisation MSAL: " + msalInitError, exception);
                     }
                 };
 
         if (settingsManager.isConfigured()) {
             File configFile = settingsManager.generateAuthConfig();
             if (configFile != null && configFile.exists()) {
-                Log.d(TAG, "Utilisation de la configuration dynamique Entra ID");
+                Log.d(TAG, "Utilisation de la configuration dynamique: " + configFile.getAbsolutePath());
+
+                // Try dynamic config first; if it fails, retry with bundled config
                 PublicClientApplication.createSingleAccountPublicClientApplication(
-                        context, configFile, listener);
+                        context, configFile,
+                        new IPublicClientApplication.ISingleAccountApplicationCreatedListener() {
+                            public void onCreated(ISingleAccountPublicClientApplication application) {
+                                msalApp = application;
+                                isInitializing = false;
+                                msalInitError = null;
+                                Log.d(TAG, "MSAL initialisé avec succès (config dynamique)");
+                            }
+
+                            public void onError(MsalException exception) {
+                                Log.e(TAG, "Échec config dynamique: " + exception.getMessage()
+                                        + " — tentative avec config intégrée", exception);
+                                // Fallback: retry with the bundled raw resource
+                                try {
+                                    PublicClientApplication.createSingleAccountPublicClientApplication(
+                                            context, R.raw.auth_config, successListener);
+                                } catch (Exception e2) {
+                                    isInitializing = false;
+                                    msalInitError = exception.getMessage();
+                                    Log.e(TAG, "Échec config intégrée aussi: " + e2.getMessage());
+                                }
+                            }
+                        });
                 return;
+            } else {
+                Log.w(TAG, "Config dynamique non générée (configFile=" + configFile + ")");
             }
+        } else {
+            Log.d(TAG, "Settings non configurés, utilisation config intégrée");
         }
 
-        // Fallback: use bundled auth_config if available
+        // Fallback: use bundled auth_config
         Log.d(TAG, "Utilisation de la configuration auth_config intégrée");
         PublicClientApplication.createSingleAccountPublicClientApplication(
-                context, R.raw.auth_config, listener);
+                context, R.raw.auth_config, successListener);
     }
 
     public void checkSignedInAccount(final AuthCallback callback) {
@@ -144,8 +176,9 @@ public class AuthManager {
                 }, 500);
                 return;
             } else {
-                Log.e(TAG, "MSAL non initialisé et pas en cours d'initialisation");
-                callback.onError(new Exception("MSAL non initialisé - vérifiez auth_config.json"));
+                String detail = msalInitError != null ? msalInitError : "vérifiez auth_config.json";
+                Log.e(TAG, "MSAL non initialisé: " + detail);
+                callback.onError(new Exception("MSAL non initialisé: " + detail));
                 return;
             }
         }
