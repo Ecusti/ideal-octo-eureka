@@ -3,8 +3,15 @@ package com.trajets.galsync.settings;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
 import java.io.File;
 import java.io.FileWriter;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -27,6 +34,10 @@ public class SettingsManager {
     private static final String KEY_LAST_SYNC_SUCCESS_COUNT = "last_sync_success_count";
     private static final String KEY_LAST_SYNC_ERROR_TIME = "last_sync_error_time";
     private static final String KEY_LAST_SYNC_ERROR_MESSAGE = "last_sync_error_message";
+
+    // Tracks whether the user has manually saved settings (or imported via QR/URL).
+    // When false, bundled auth_config.json defaults are applied on first use.
+    private static final String KEY_USER_HAS_CONFIGURED = "user_has_configured";
 
     private static final int DEFAULT_SYNC_INTERVAL_HOURS = 24;
 
@@ -177,6 +188,114 @@ public class SettingsManager {
         return sdf.format(new Date(timestamp));
     }
 
+    // --- Bundled config auto-fill ---
+
+    public boolean hasUserConfigured() {
+        return prefs.getBoolean(KEY_USER_HAS_CONFIGURED, false);
+    }
+
+    public void markUserConfigured() {
+        prefs.edit().putBoolean(KEY_USER_HAS_CONFIGURED, true).apply();
+    }
+
+    /**
+     * On first launch (before the user has saved settings manually), read the bundled
+     * auth_config.json from res/raw and populate settings from it.
+     *
+     * If the bundled file still contains "PLACEHOLDER" values, nothing is applied —
+     * this means the admin has not customized the APK and the user must configure manually.
+     *
+     * Call this once from MainActivity.onCreate().
+     */
+    public void loadDefaultsIfNeeded(int rawResourceId) {
+        if (hasUserConfigured()) {
+            return; // User already saved or imported settings; don't overwrite.
+        }
+
+        try {
+            InputStream is = context.getResources().openRawResource(rawResourceId);
+            InputStreamReader reader = new InputStreamReader(is, StandardCharsets.UTF_8);
+            JsonObject obj = JsonParser.parseReader(reader).getAsJsonObject();
+            reader.close();
+
+            String clientId = getJsonString(obj, "client_id");
+            String tenantId = getJsonString(obj, "tenant_id");
+
+            // If the bundled config still has placeholder values, skip auto-fill.
+            if (clientId == null || tenantId == null
+                    || "PLACEHOLDER".equalsIgnoreCase(clientId)
+                    || "PLACEHOLDER".equalsIgnoreCase(tenantId)) {
+                return;
+            }
+
+            // Extract tenant ID from authority_url as fallback
+            if (tenantId.isEmpty() && obj.has("authorities")) {
+                JsonArray authorities = obj.getAsJsonArray("authorities");
+                if (authorities.size() > 0) {
+                    JsonObject auth = authorities.get(0).getAsJsonObject();
+                    String url = getJsonString(auth, "authority_url");
+                    if (url != null && url.contains("microsoftonline.com/")) {
+                        String[] parts = url.split("microsoftonline.com/");
+                        if (parts.length > 1 && !parts[1].isEmpty()) {
+                            tenantId = parts[1].replace("/", "");
+                        }
+                    }
+                }
+            }
+
+            // Apply bundled values to settings
+            if (isValidUuid(clientId)) {
+                setClientId(clientId);
+            }
+            if (isValidUuid(tenantId)) {
+                setTenantId(tenantId);
+            }
+
+            String redirectUri = getJsonString(obj, "redirect_uri");
+            if (redirectUri != null && !redirectUri.isEmpty()
+                    && !"PLACEHOLDER".equalsIgnoreCase(redirectUri)
+                    && !redirectUri.contains("PLACEHOLDER")) {
+                setRedirectUri(redirectUri);
+            }
+
+            // GalSync-specific fields (prefixed with galsync_)
+            String groupId = getJsonString(obj, "galsync_security_group_id");
+            if (groupId != null && !groupId.isEmpty()) {
+                setSecurityGroupId(groupId);
+            }
+
+            String filterAttr = getJsonString(obj, "galsync_filter_attribute");
+            if (filterAttr != null && !filterAttr.isEmpty()) {
+                setFilterAttribute(filterAttr);
+            }
+
+            String filterVal = getJsonString(obj, "galsync_filter_value");
+            if (filterVal != null && !filterVal.isEmpty()) {
+                setFilterValue(filterVal);
+            }
+
+            // If at least client_id and tenant_id were valid, mark as configured
+            // so generateAuthConfig() can produce a usable MSAL config.
+            if (isConfigured()) {
+                generateAuthConfig();
+            }
+
+        } catch (Exception e) {
+            // Bundled file is missing or malformed — ignore silently.
+        }
+    }
+
+    private static String getJsonString(JsonObject obj, String key) {
+        if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) {
+            return null;
+        }
+        try {
+            return obj.get(key).getAsString().trim();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     /**
      * Generate the MSAL auth_config.json dynamically from settings
      * and write it to internal storage.
@@ -191,7 +310,7 @@ public class SettingsManager {
         String redirectUri = getRedirectUri().trim();
 
         if (redirectUri.isEmpty()) {
-            redirectUri = "msauth://com.trajets.galsync/LB%2FrljQKsdgZjjwJG1HL0VwoNhU%3D";
+            redirectUri = "msauth://com.trajets.galsync2/m45g9VrDROQ8Bqy9zxEAICN2KKA%3D";
         }
 
         // Use Gson to safely build the JSON and avoid injection

@@ -212,6 +212,7 @@ public class SettingsActivity extends AppCompatActivity {
             settingsManager.setSyncIntervalHours(INTERVAL_HOURS[selectedIndex]);
         }
 
+        settingsManager.markUserConfigured();
         settingsManager.generateAuthConfig();
 
         Toast.makeText(this, R.string.settings_saved, Toast.LENGTH_SHORT).show();

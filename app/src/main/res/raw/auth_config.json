@@ -10,5 +10,8 @@
       "authority_url": "https://login.microsoftonline.com/common",
       "default": true
     }
-  ]
+  ],
+  "galsync_security_group_id": "",
+  "galsync_filter_attribute": "",
+  "galsync_filter_value": ""
 }
