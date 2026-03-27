@@ -12,6 +12,7 @@
     <uses-permission android:name="android.permission.USE_CREDENTIALS" />
     <uses-permission android:name="android.permission.READ_SYNC_SETTINGS" />
     <uses-permission android:name="android.permission.WRITE_SYNC_SETTINGS" />
+    <uses-permission android:name="android.permission.CAMERA" />
 
     <application
         android:allowBackup="false"
@@ -21,11 +22,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.GalSync"
         tools:targetApi="31">
-
-        <!-- Request automatic download of the barcode scanner module -->
-        <meta-data
-            android:name="com.google.mlkit.vision.DEPENDENCIES"
-            android:value="barcode" />
 
         <activity
             android:name=".MainActivity"
