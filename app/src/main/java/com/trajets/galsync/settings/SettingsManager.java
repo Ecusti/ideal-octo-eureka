@@ -1,7 +1,12 @@
 package com.trajets.galsync.settings;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.net.Uri;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -16,6 +21,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
@@ -316,6 +322,47 @@ public class SettingsManager {
     }
 
     /**
+     * Read the redirect_uri that matches the BrowserTabActivity intent-filter
+     * declared in the AndroidManifest. This ensures the MSAL config always
+     * matches the manifest, regardless of what the user entered in settings.
+     */
+    private String getRedirectUriFromManifest() {
+        try {
+            // Query for activities that handle msauth:// intents
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.addCategory(Intent.CATEGORY_DEFAULT);
+            intent.addCategory(Intent.CATEGORY_BROWSABLE);
+            intent.setData(Uri.parse("msauth://placeholder"));
+
+            PackageManager pm = context.getPackageManager();
+            List<ResolveInfo> activities = pm.queryIntentActivities(intent,
+                    PackageManager.GET_RESOLVED_FILTER);
+
+            for (ResolveInfo info : activities) {
+                if (info.activityInfo != null
+                        && "com.microsoft.identity.client.BrowserTabActivity"
+                                .equals(info.activityInfo.name)) {
+                    // Found it — reconstruct the redirect_uri from the intent-filter
+                    if (info.filter != null && info.filter.countDataAuthorities() > 0
+                            && info.filter.countDataPaths() > 0) {
+                        String scheme = "msauth";
+                        String host = info.filter.getDataAuthority(0).getHost();
+                        String path = info.filter.getDataPath(0).getPath();
+                        // URL-encode the path (especially the '=' at the end)
+                        String encodedPath = Uri.encode(path, "/");
+                        String uri = scheme + "://" + host + encodedPath;
+                        Log.d(TAG, "Redirect URI from manifest: " + uri);
+                        return uri;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Could not read redirect_uri from manifest", e);
+        }
+        return null;
+    }
+
+    /**
      * Generate the MSAL auth_config.json dynamically from settings
      * and write it to internal storage.
      */
@@ -326,10 +373,19 @@ public class SettingsManager {
 
         String clientId = getClientId().trim();
         String tenantId = getTenantId().trim();
-        String redirectUri = getRedirectUri().trim();
 
-        if (redirectUri.isEmpty()) {
-            redirectUri = "msauth://com.trajets.galsync2/m45g9VrDROQ8Bqy9zxEAICN2KKA%3D";
+        // Always use the redirect_uri from the manifest to guarantee it matches
+        // the BrowserTabActivity intent-filter. User-provided redirect_uri is
+        // stored in settings but NOT used for MSAL config generation, because
+        // a mismatch causes a fatal MsalClientException at init time.
+        String redirectUri = getRedirectUriFromManifest();
+        if (redirectUri == null || redirectUri.isEmpty()) {
+            // Fallback: use user-provided or hardcoded default
+            redirectUri = getRedirectUri().trim();
+            if (redirectUri.isEmpty()) {
+                redirectUri = "msauth://com.trajets.galsync2/m45g9VrDROQ8Bqy9zxEAICN2KKA%3D";
+            }
+            Log.w(TAG, "Could not read manifest redirect_uri, using fallback: " + redirectUri);
         }
 
         // Use Gson to safely build the JSON and avoid injection
