@@ -37,6 +37,7 @@ public class SettingsManager {
     private static final String KEY_FILTER_ATTRIBUTE = "filter_attribute";
     private static final String KEY_FILTER_VALUE = "filter_value";
     private static final String KEY_NESTED_GROUPS_ENABLED = "nested_groups_enabled";
+    private static final String KEY_AUTO_COUNTRY_CODE = "auto_country_code";
 
     // Sync status keys
     private static final String KEY_SYNC_ENABLED = "sync_enabled";
@@ -173,6 +174,14 @@ public class SettingsManager {
 
     public void setNestedGroupsEnabled(boolean enabled) {
         prefs.edit().putBoolean(KEY_NESTED_GROUPS_ENABLED, enabled).apply();
+    }
+
+    public boolean isAutoCountryCodeEnabled() {
+        return prefs.getBoolean(KEY_AUTO_COUNTRY_CODE, true);
+    }
+
+    public void setAutoCountryCodeEnabled(boolean enabled) {
+        prefs.edit().putBoolean(KEY_AUTO_COUNTRY_CODE, enabled).apply();
     }
 
     public boolean hasAttributeFilter() {

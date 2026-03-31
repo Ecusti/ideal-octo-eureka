@@ -102,6 +102,15 @@
             android:textSize="16sp"
             android:layout_marginBottom="12dp" />
 
+        <CheckBox
+            android:id="@+id/cb_auto_country_code"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/settings_auto_country_code"
+            android:textSize="14sp"
+            android:checked="true"
+            android:layout_marginBottom="12dp" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

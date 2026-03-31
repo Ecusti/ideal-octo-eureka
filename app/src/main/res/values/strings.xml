@@ -33,6 +33,7 @@
     <!-- Sync status -->
     <string name="settings_section_sync">Synchronisation automatique</string>
     <string name="settings_sync_enabled">Synchronisation activée</string>
+    <string name="settings_auto_country_code">Ajouter automatiquement l\'indicatif international aux numéros</string>
     <string name="settings_sync_interval">Fréquence de synchronisation</string>
     <string name="settings_section_sync_status">État de la synchronisation</string>
     <string name="settings_sync_status_label">État :</string>

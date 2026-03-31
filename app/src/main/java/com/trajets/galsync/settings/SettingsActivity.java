@@ -41,6 +41,7 @@ public class SettingsActivity extends AppCompatActivity {
     private TextView tvLastStatus;
     private Button btnSave;
     private CheckBox cbNestedGroups;
+    private CheckBox cbAutoCountryCode;
     private Button btnImportQr;
     private Button btnImportUrl;
 
@@ -100,6 +101,7 @@ public class SettingsActivity extends AppCompatActivity {
         });
 
         cbNestedGroups = findViewById(R.id.cb_nested_groups);
+        cbAutoCountryCode = findViewById(R.id.cb_auto_country_code);
 
         btnImportQr = findViewById(R.id.btn_import_qr);
         btnImportUrl = findViewById(R.id.btn_import_url);
@@ -127,6 +129,8 @@ public class SettingsActivity extends AppCompatActivity {
         cbNestedGroups.setChecked(settingsManager.isNestedGroupsEnabled());
         etFilterAttribute.setText(settingsManager.getFilterAttribute());
         etFilterValue.setText(settingsManager.getFilterValue());
+
+        cbAutoCountryCode.setChecked(settingsManager.isAutoCountryCodeEnabled());
 
         switchSyncEnabled.setChecked(settingsManager.isSyncEnabled());
 
@@ -212,6 +216,7 @@ public class SettingsActivity extends AppCompatActivity {
         settingsManager.setFilterAttribute(filterAttr);
         settingsManager.setFilterValue(etFilterValue.getText().toString().trim());
 
+        settingsManager.setAutoCountryCodeEnabled(cbAutoCountryCode.isChecked());
         settingsManager.setSyncEnabled(switchSyncEnabled.isChecked());
         int selectedIndex = spinnerSyncInterval.getSelectedItemPosition();
         if (selectedIndex >= 0 && selectedIndex < INTERVAL_HOURS.length) {
