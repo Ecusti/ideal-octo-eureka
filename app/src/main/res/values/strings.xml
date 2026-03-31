@@ -19,7 +19,9 @@
     <string name="settings_redirect_uri">URI de redirection (optionnel)</string>
     <string name="settings_section_scoping">Filtrage des utilisateurs</string>
     <string name="settings_section_scoping_desc">Limitez la synchronisation à un groupe de sécurité spécifique ou filtrez par attribut utilisateur. Ces options sont facultatives.</string>
-    <string name="settings_security_group_id">ID du groupe de sécurité (optionnel)</string>
+    <string name="settings_security_group_id">ID des groupes de sécurité (séparés par des virgules)</string>
+    <string name="settings_nested_groups">Résoudre les sous-groupes (groupes imbriqués)</string>
+    <string name="settings_validation_group_ids">Chaque ID de groupe doit être un UUID valide, séparés par des virgules</string>
     <string name="settings_filter_attribute">Attribut de filtrage (ex: department, companyName)</string>
     <string name="settings_filter_value">Valeur de l\'attribut</string>
     <string name="settings_or_label">-- ou filtrer par attribut --</string>
@@ -31,6 +33,7 @@
     <!-- Sync status -->
     <string name="settings_section_sync">Synchronisation automatique</string>
     <string name="settings_sync_enabled">Synchronisation activée</string>
+    <string name="settings_auto_country_code">Ajouter automatiquement l\'indicatif international aux numéros</string>
     <string name="settings_sync_interval">Fréquence de synchronisation</string>
     <string name="settings_section_sync_status">État de la synchronisation</string>
     <string name="settings_sync_status_label">État :</string>

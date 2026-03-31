@@ -7,13 +7,17 @@ import android.database.Cursor;
 import android.provider.ContactsContract;
 import android.util.Log;
 
+import android.telephony.TelephonyManager;
+
 import com.trajets.galsync.auth.AuthManager;
 import com.trajets.galsync.models.EntraUser;
 import com.trajets.galsync.settings.SettingsManager;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -181,6 +185,7 @@ public class ContactSyncManager {
     private int syncContactsToDevice(List<EntraUser> users, SyncCallback callback) {
         ContentResolver resolver = context.getContentResolver();
         int syncedCount = 0;
+        boolean autoCountryCode = settingsManager.isAutoCountryCodeEnabled();
 
         for (int i = 0; i < users.size(); i++) {
             EntraUser user = users.get(i);
@@ -221,27 +226,35 @@ public class ContactSyncManager {
             }
 
             // Téléphone professionnel
-            if (user.getPhoneNumber() != null && !user.getPhoneNumber().trim().isEmpty()) {
+            String workPhone = user.getPhoneNumber();
+            if (autoCountryCode && workPhone != null) {
+                workPhone = formatPhoneWithCountryCode(workPhone);
+            }
+            if (workPhone != null && !workPhone.trim().isEmpty()) {
                 ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
                         .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
                         .withValue(ContactsContract.Data.MIMETYPE,
                                 ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
                         .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER,
-                                user.getPhoneNumber())
+                                workPhone)
                         .withValue(ContactsContract.CommonDataKinds.Phone.TYPE,
                                 ContactsContract.CommonDataKinds.Phone.TYPE_WORK)
                         .build());
             }
 
             // Téléphone mobile
-            if (user.getMobilePhone() != null && !user.getMobilePhone().trim().isEmpty()) {
-                if (user.getPhoneNumber() == null || !user.getMobilePhone().equals(user.getPhoneNumber())) {
+            String mobilePhone = user.getMobilePhone();
+            if (autoCountryCode && mobilePhone != null) {
+                mobilePhone = formatPhoneWithCountryCode(mobilePhone);
+            }
+            if (mobilePhone != null && !mobilePhone.trim().isEmpty()) {
+                if (workPhone == null || !mobilePhone.equals(workPhone)) {
                     ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
                             .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
                             .withValue(ContactsContract.Data.MIMETYPE,
                                     ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
                             .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER,
-                                    user.getMobilePhone())
+                                    mobilePhone)
                             .withValue(ContactsContract.CommonDataKinds.Phone.TYPE,
                                     ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE)
                             .build());
@@ -350,11 +363,17 @@ public class ContactSyncManager {
                     .writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
                     .build();
 
-            // If a security group is configured, fetch group members instead
+            // If security groups are configured, fetch members from all groups
             Set<String> groupMemberIds = null;
             if (settingsManager.hasGroupFilter()) {
-                groupMemberIds = fetchGroupMemberIds(client, accessToken, settingsManager.getSecurityGroupId().trim());
-                Log.d(TAG, "Filtre par groupe de sécurité: " + groupMemberIds.size() + " membres");
+                boolean nested = settingsManager.isNestedGroupsEnabled();
+                groupMemberIds = new HashSet<>();
+                for (String gid : settingsManager.getSecurityGroupIds()) {
+                    Set<String> ids = fetchGroupMemberIds(client, accessToken, gid, nested);
+                    groupMemberIds.addAll(ids);
+                    Log.d(TAG, "Groupe " + gid + (nested ? " (transitif)" : "") + ": " + ids.size() + " membres");
+                }
+                Log.d(TAG, "Filtre par groupe(s) de sécurité: " + groupMemberIds.size() + " membres au total");
             }
 
             // Build URL with optional attribute filter
@@ -585,10 +604,11 @@ public class ContactSyncManager {
         }
     }
 
-    private Set<String> fetchGroupMemberIds(okhttp3.OkHttpClient client, String accessToken, String groupId) {
+    private Set<String> fetchGroupMemberIds(okhttp3.OkHttpClient client, String accessToken, String groupId, boolean transitive) {
         Set<String> memberIds = new HashSet<>();
         try {
-            String url = "https://graph.microsoft.com/v1.0/groups/" + groupId + "/members?$select=id&$top=999";
+            String endpoint = transitive ? "/transitiveMembers" : "/members";
+            String url = "https://graph.microsoft.com/v1.0/groups/" + groupId + endpoint + "?$select=id&$top=999";
 
             okhttp3.Request request = new okhttp3.Request.Builder()
                     .url(url)
@@ -619,5 +639,238 @@ public class ContactSyncManager {
             Log.e(TAG, "Erreur lors de la récupération des membres du groupe", e);
         }
         return memberIds;
+    }
+
+    /**
+     * If auto country code is enabled, prepend the international dialing prefix
+     * to phone numbers that don't already have one (starting with + or 00).
+     * The country is detected from the device's SIM or network locale.
+     */
+    private String formatPhoneWithCountryCode(String phone) {
+        if (phone == null || phone.trim().isEmpty()) return phone;
+
+        String trimmed = phone.trim();
+        // Already has an international prefix
+        if (trimmed.startsWith("+") || trimmed.startsWith("00")) {
+            return trimmed;
+        }
+
+        String countryCode = getDeviceCountryDialCode();
+        if (countryCode == null) return trimmed;
+
+        // Remove leading 0 (local trunk prefix) before prepending country code
+        if (trimmed.startsWith("0")) {
+            trimmed = trimmed.substring(1);
+        }
+
+        return countryCode + trimmed;
+    }
+
+    /**
+     * Returns the international dialing code (e.g. "+41" for Switzerland, "+33" for France)
+     * based on the device's SIM country or network country.
+     */
+    private String getDeviceCountryDialCode() {
+        try {
+            TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+            String countryIso = null;
+            if (tm != null) {
+                countryIso = tm.getSimCountryIso();
+                if (countryIso == null || countryIso.isEmpty()) {
+                    countryIso = tm.getNetworkCountryIso();
+                }
+            }
+            if (countryIso == null || countryIso.isEmpty()) {
+                countryIso = context.getResources().getConfiguration().getLocales().get(0).getCountry();
+            }
+            if (countryIso == null || countryIso.isEmpty()) return null;
+
+            String dialCode = COUNTRY_DIAL_CODES.get(countryIso.toUpperCase());
+            if (dialCode != null) {
+                Log.d(TAG, "Country ISO: " + countryIso + " -> dial code: " + dialCode);
+            }
+            return dialCode;
+        } catch (Exception e) {
+            Log.w(TAG, "Could not determine country dial code", e);
+            return null;
+        }
+    }
+
+    private static final Map<String, String> COUNTRY_DIAL_CODES = new HashMap<>();
+    static {
+        COUNTRY_DIAL_CODES.put("AF", "+93");
+        COUNTRY_DIAL_CODES.put("AL", "+355");
+        COUNTRY_DIAL_CODES.put("DZ", "+213");
+        COUNTRY_DIAL_CODES.put("AD", "+376");
+        COUNTRY_DIAL_CODES.put("AO", "+244");
+        COUNTRY_DIAL_CODES.put("AR", "+54");
+        COUNTRY_DIAL_CODES.put("AM", "+374");
+        COUNTRY_DIAL_CODES.put("AU", "+61");
+        COUNTRY_DIAL_CODES.put("AT", "+43");
+        COUNTRY_DIAL_CODES.put("AZ", "+994");
+        COUNTRY_DIAL_CODES.put("BH", "+973");
+        COUNTRY_DIAL_CODES.put("BD", "+880");
+        COUNTRY_DIAL_CODES.put("BY", "+375");
+        COUNTRY_DIAL_CODES.put("BE", "+32");
+        COUNTRY_DIAL_CODES.put("BZ", "+501");
+        COUNTRY_DIAL_CODES.put("BJ", "+229");
+        COUNTRY_DIAL_CODES.put("BT", "+975");
+        COUNTRY_DIAL_CODES.put("BO", "+591");
+        COUNTRY_DIAL_CODES.put("BA", "+387");
+        COUNTRY_DIAL_CODES.put("BW", "+267");
+        COUNTRY_DIAL_CODES.put("BR", "+55");
+        COUNTRY_DIAL_CODES.put("BN", "+673");
+        COUNTRY_DIAL_CODES.put("BG", "+359");
+        COUNTRY_DIAL_CODES.put("BF", "+226");
+        COUNTRY_DIAL_CODES.put("BI", "+257");
+        COUNTRY_DIAL_CODES.put("KH", "+855");
+        COUNTRY_DIAL_CODES.put("CM", "+237");
+        COUNTRY_DIAL_CODES.put("CA", "+1");
+        COUNTRY_DIAL_CODES.put("CV", "+238");
+        COUNTRY_DIAL_CODES.put("CF", "+236");
+        COUNTRY_DIAL_CODES.put("TD", "+235");
+        COUNTRY_DIAL_CODES.put("CL", "+56");
+        COUNTRY_DIAL_CODES.put("CN", "+86");
+        COUNTRY_DIAL_CODES.put("CO", "+57");
+        COUNTRY_DIAL_CODES.put("KM", "+269");
+        COUNTRY_DIAL_CODES.put("CG", "+242");
+        COUNTRY_DIAL_CODES.put("CD", "+243");
+        COUNTRY_DIAL_CODES.put("CR", "+506");
+        COUNTRY_DIAL_CODES.put("CI", "+225");
+        COUNTRY_DIAL_CODES.put("HR", "+385");
+        COUNTRY_DIAL_CODES.put("CU", "+53");
+        COUNTRY_DIAL_CODES.put("CY", "+357");
+        COUNTRY_DIAL_CODES.put("CZ", "+420");
+        COUNTRY_DIAL_CODES.put("DK", "+45");
+        COUNTRY_DIAL_CODES.put("DJ", "+253");
+        COUNTRY_DIAL_CODES.put("DO", "+1");
+        COUNTRY_DIAL_CODES.put("EC", "+593");
+        COUNTRY_DIAL_CODES.put("EG", "+20");
+        COUNTRY_DIAL_CODES.put("SV", "+503");
+        COUNTRY_DIAL_CODES.put("GQ", "+240");
+        COUNTRY_DIAL_CODES.put("ER", "+291");
+        COUNTRY_DIAL_CODES.put("EE", "+372");
+        COUNTRY_DIAL_CODES.put("ET", "+251");
+        COUNTRY_DIAL_CODES.put("FI", "+358");
+        COUNTRY_DIAL_CODES.put("FR", "+33");
+        COUNTRY_DIAL_CODES.put("GA", "+241");
+        COUNTRY_DIAL_CODES.put("GM", "+220");
+        COUNTRY_DIAL_CODES.put("GE", "+995");
+        COUNTRY_DIAL_CODES.put("DE", "+49");
+        COUNTRY_DIAL_CODES.put("GH", "+233");
+        COUNTRY_DIAL_CODES.put("GR", "+30");
+        COUNTRY_DIAL_CODES.put("GT", "+502");
+        COUNTRY_DIAL_CODES.put("GN", "+224");
+        COUNTRY_DIAL_CODES.put("GW", "+245");
+        COUNTRY_DIAL_CODES.put("GY", "+592");
+        COUNTRY_DIAL_CODES.put("HT", "+509");
+        COUNTRY_DIAL_CODES.put("HN", "+504");
+        COUNTRY_DIAL_CODES.put("HK", "+852");
+        COUNTRY_DIAL_CODES.put("HU", "+36");
+        COUNTRY_DIAL_CODES.put("IS", "+354");
+        COUNTRY_DIAL_CODES.put("IN", "+91");
+        COUNTRY_DIAL_CODES.put("ID", "+62");
+        COUNTRY_DIAL_CODES.put("IR", "+98");
+        COUNTRY_DIAL_CODES.put("IQ", "+964");
+        COUNTRY_DIAL_CODES.put("IE", "+353");
+        COUNTRY_DIAL_CODES.put("IL", "+972");
+        COUNTRY_DIAL_CODES.put("IT", "+39");
+        COUNTRY_DIAL_CODES.put("JM", "+1");
+        COUNTRY_DIAL_CODES.put("JP", "+81");
+        COUNTRY_DIAL_CODES.put("JO", "+962");
+        COUNTRY_DIAL_CODES.put("KZ", "+7");
+        COUNTRY_DIAL_CODES.put("KE", "+254");
+        COUNTRY_DIAL_CODES.put("KW", "+965");
+        COUNTRY_DIAL_CODES.put("KG", "+996");
+        COUNTRY_DIAL_CODES.put("LA", "+856");
+        COUNTRY_DIAL_CODES.put("LV", "+371");
+        COUNTRY_DIAL_CODES.put("LB", "+961");
+        COUNTRY_DIAL_CODES.put("LS", "+266");
+        COUNTRY_DIAL_CODES.put("LR", "+231");
+        COUNTRY_DIAL_CODES.put("LY", "+218");
+        COUNTRY_DIAL_CODES.put("LI", "+423");
+        COUNTRY_DIAL_CODES.put("LT", "+370");
+        COUNTRY_DIAL_CODES.put("LU", "+352");
+        COUNTRY_DIAL_CODES.put("MO", "+853");
+        COUNTRY_DIAL_CODES.put("MK", "+389");
+        COUNTRY_DIAL_CODES.put("MG", "+261");
+        COUNTRY_DIAL_CODES.put("MW", "+265");
+        COUNTRY_DIAL_CODES.put("MY", "+60");
+        COUNTRY_DIAL_CODES.put("MV", "+960");
+        COUNTRY_DIAL_CODES.put("ML", "+223");
+        COUNTRY_DIAL_CODES.put("MT", "+356");
+        COUNTRY_DIAL_CODES.put("MR", "+222");
+        COUNTRY_DIAL_CODES.put("MU", "+230");
+        COUNTRY_DIAL_CODES.put("MX", "+52");
+        COUNTRY_DIAL_CODES.put("MD", "+373");
+        COUNTRY_DIAL_CODES.put("MC", "+377");
+        COUNTRY_DIAL_CODES.put("MN", "+976");
+        COUNTRY_DIAL_CODES.put("ME", "+382");
+        COUNTRY_DIAL_CODES.put("MA", "+212");
+        COUNTRY_DIAL_CODES.put("MZ", "+258");
+        COUNTRY_DIAL_CODES.put("MM", "+95");
+        COUNTRY_DIAL_CODES.put("NA", "+264");
+        COUNTRY_DIAL_CODES.put("NP", "+977");
+        COUNTRY_DIAL_CODES.put("NL", "+31");
+        COUNTRY_DIAL_CODES.put("NZ", "+64");
+        COUNTRY_DIAL_CODES.put("NI", "+505");
+        COUNTRY_DIAL_CODES.put("NE", "+227");
+        COUNTRY_DIAL_CODES.put("NG", "+234");
+        COUNTRY_DIAL_CODES.put("KP", "+850");
+        COUNTRY_DIAL_CODES.put("NO", "+47");
+        COUNTRY_DIAL_CODES.put("OM", "+968");
+        COUNTRY_DIAL_CODES.put("PK", "+92");
+        COUNTRY_DIAL_CODES.put("PA", "+507");
+        COUNTRY_DIAL_CODES.put("PG", "+675");
+        COUNTRY_DIAL_CODES.put("PY", "+595");
+        COUNTRY_DIAL_CODES.put("PE", "+51");
+        COUNTRY_DIAL_CODES.put("PH", "+63");
+        COUNTRY_DIAL_CODES.put("PL", "+48");
+        COUNTRY_DIAL_CODES.put("PT", "+351");
+        COUNTRY_DIAL_CODES.put("PR", "+1");
+        COUNTRY_DIAL_CODES.put("QA", "+974");
+        COUNTRY_DIAL_CODES.put("RO", "+40");
+        COUNTRY_DIAL_CODES.put("RU", "+7");
+        COUNTRY_DIAL_CODES.put("RW", "+250");
+        COUNTRY_DIAL_CODES.put("SA", "+966");
+        COUNTRY_DIAL_CODES.put("SN", "+221");
+        COUNTRY_DIAL_CODES.put("RS", "+381");
+        COUNTRY_DIAL_CODES.put("SL", "+232");
+        COUNTRY_DIAL_CODES.put("SG", "+65");
+        COUNTRY_DIAL_CODES.put("SK", "+421");
+        COUNTRY_DIAL_CODES.put("SI", "+386");
+        COUNTRY_DIAL_CODES.put("SO", "+252");
+        COUNTRY_DIAL_CODES.put("ZA", "+27");
+        COUNTRY_DIAL_CODES.put("KR", "+82");
+        COUNTRY_DIAL_CODES.put("SS", "+211");
+        COUNTRY_DIAL_CODES.put("ES", "+34");
+        COUNTRY_DIAL_CODES.put("LK", "+94");
+        COUNTRY_DIAL_CODES.put("SD", "+249");
+        COUNTRY_DIAL_CODES.put("SR", "+597");
+        COUNTRY_DIAL_CODES.put("SZ", "+268");
+        COUNTRY_DIAL_CODES.put("SE", "+46");
+        COUNTRY_DIAL_CODES.put("CH", "+41");
+        COUNTRY_DIAL_CODES.put("SY", "+963");
+        COUNTRY_DIAL_CODES.put("TW", "+886");
+        COUNTRY_DIAL_CODES.put("TJ", "+992");
+        COUNTRY_DIAL_CODES.put("TZ", "+255");
+        COUNTRY_DIAL_CODES.put("TH", "+66");
+        COUNTRY_DIAL_CODES.put("TL", "+670");
+        COUNTRY_DIAL_CODES.put("TG", "+228");
+        COUNTRY_DIAL_CODES.put("TN", "+216");
+        COUNTRY_DIAL_CODES.put("TR", "+90");
+        COUNTRY_DIAL_CODES.put("TM", "+993");
+        COUNTRY_DIAL_CODES.put("UG", "+256");
+        COUNTRY_DIAL_CODES.put("UA", "+380");
+        COUNTRY_DIAL_CODES.put("AE", "+971");
+        COUNTRY_DIAL_CODES.put("GB", "+44");
+        COUNTRY_DIAL_CODES.put("US", "+1");
+        COUNTRY_DIAL_CODES.put("UY", "+598");
+        COUNTRY_DIAL_CODES.put("UZ", "+998");
+        COUNTRY_DIAL_CODES.put("VE", "+58");
+        COUNTRY_DIAL_CODES.put("VN", "+84");
+        COUNTRY_DIAL_CODES.put("YE", "+967");
+        COUNTRY_DIAL_CODES.put("ZM", "+260");
+        COUNTRY_DIAL_CODES.put("ZW", "+263");
     }
 }

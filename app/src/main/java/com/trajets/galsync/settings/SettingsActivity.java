@@ -10,6 +10,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.CheckBox;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -39,6 +40,8 @@ public class SettingsActivity extends AppCompatActivity {
     private TextView tvLastSuccess;
     private TextView tvLastStatus;
     private Button btnSave;
+    private CheckBox cbNestedGroups;
+    private CheckBox cbAutoCountryCode;
     private Button btnImportQr;
     private Button btnImportUrl;
 
@@ -97,6 +100,9 @@ public class SettingsActivity extends AppCompatActivity {
             }
         });
 
+        cbNestedGroups = findViewById(R.id.cb_nested_groups);
+        cbAutoCountryCode = findViewById(R.id.cb_auto_country_code);
+
         btnImportQr = findViewById(R.id.btn_import_qr);
         btnImportUrl = findViewById(R.id.btn_import_url);
 
@@ -120,8 +126,11 @@ public class SettingsActivity extends AppCompatActivity {
         etTenantId.setText(settingsManager.getTenantId());
         etRedirectUri.setText(settingsManager.getRedirectUri());
         etSecurityGroupId.setText(settingsManager.getSecurityGroupId());
+        cbNestedGroups.setChecked(settingsManager.isNestedGroupsEnabled());
         etFilterAttribute.setText(settingsManager.getFilterAttribute());
         etFilterValue.setText(settingsManager.getFilterValue());
+
+        cbAutoCountryCode.setChecked(settingsManager.isAutoCountryCodeEnabled());
 
         switchSyncEnabled.setChecked(settingsManager.isSyncEnabled());
 
@@ -185,10 +194,10 @@ public class SettingsActivity extends AppCompatActivity {
             return;
         }
 
-        // Validate optional security group ID
+        // Validate optional security group ID(s) — comma-separated UUIDs
         String groupId = etSecurityGroupId.getText().toString().trim();
-        if (!groupId.isEmpty() && !SettingsManager.isValidUuid(groupId)) {
-            Toast.makeText(this, R.string.settings_validation_uuid, Toast.LENGTH_LONG).show();
+        if (!groupId.isEmpty() && !SettingsManager.isValidGroupIdList(groupId)) {
+            Toast.makeText(this, R.string.settings_validation_group_ids, Toast.LENGTH_LONG).show();
             return;
         }
 
@@ -203,9 +212,11 @@ public class SettingsActivity extends AppCompatActivity {
         settingsManager.setTenantId(tenantId);
         settingsManager.setRedirectUri(etRedirectUri.getText().toString().trim());
         settingsManager.setSecurityGroupId(groupId);
+        settingsManager.setNestedGroupsEnabled(cbNestedGroups.isChecked());
         settingsManager.setFilterAttribute(filterAttr);
         settingsManager.setFilterValue(etFilterValue.getText().toString().trim());
 
+        settingsManager.setAutoCountryCodeEnabled(cbAutoCountryCode.isChecked());
         settingsManager.setSyncEnabled(switchSyncEnabled.isChecked());
         int selectedIndex = spinnerSyncInterval.getSelectedItemPosition();
         if (selectedIndex >= 0 && selectedIndex < INTERVAL_HOURS.length) {
@@ -281,6 +292,11 @@ public class SettingsActivity extends AppCompatActivity {
             etTenantId.setText(config.tenantId != null ? config.tenantId : "");
             etRedirectUri.setText(config.redirectUri != null ? config.redirectUri : "");
             etSecurityGroupId.setText(config.securityGroupId != null ? config.securityGroupId : "");
+            if (config.nestedGroups != null) {
+                cbNestedGroups.setChecked(config.nestedGroups);
+            } else {
+                cbNestedGroups.setChecked(false);
+            }
             etFilterAttribute.setText(config.filterAttribute != null ? config.filterAttribute : "");
             etFilterValue.setText(config.filterValue != null ? config.filterValue : "");
 

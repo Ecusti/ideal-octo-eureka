@@ -12,6 +12,7 @@
     }
   ],
   "galsync_security_group_id": "",
+  "galsync_nested_groups": false,
   "galsync_filter_attribute": "",
   "galsync_filter_value": ""
 }
