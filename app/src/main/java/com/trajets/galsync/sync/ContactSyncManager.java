@@ -350,11 +350,17 @@ public class ContactSyncManager {
                     .writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
                     .build();
 
-            // If a security group is configured, fetch group members instead
+            // If security groups are configured, fetch members from all groups
             Set<String> groupMemberIds = null;
             if (settingsManager.hasGroupFilter()) {
-                groupMemberIds = fetchGroupMemberIds(client, accessToken, settingsManager.getSecurityGroupId().trim());
-                Log.d(TAG, "Filtre par groupe de sécurité: " + groupMemberIds.size() + " membres");
+                boolean nested = settingsManager.isNestedGroupsEnabled();
+                groupMemberIds = new HashSet<>();
+                for (String gid : settingsManager.getSecurityGroupIds()) {
+                    Set<String> ids = fetchGroupMemberIds(client, accessToken, gid, nested);
+                    groupMemberIds.addAll(ids);
+                    Log.d(TAG, "Groupe " + gid + (nested ? " (transitif)" : "") + ": " + ids.size() + " membres");
+                }
+                Log.d(TAG, "Filtre par groupe(s) de sécurité: " + groupMemberIds.size() + " membres au total");
             }
 
             // Build URL with optional attribute filter
@@ -585,10 +591,11 @@ public class ContactSyncManager {
         }
     }
 
-    private Set<String> fetchGroupMemberIds(okhttp3.OkHttpClient client, String accessToken, String groupId) {
+    private Set<String> fetchGroupMemberIds(okhttp3.OkHttpClient client, String accessToken, String groupId, boolean transitive) {
         Set<String> memberIds = new HashSet<>();
         try {
-            String url = "https://graph.microsoft.com/v1.0/groups/" + groupId + "/members?$select=id&$top=999";
+            String endpoint = transitive ? "/transitiveMembers" : "/members";
+            String url = "https://graph.microsoft.com/v1.0/groups/" + groupId + endpoint + "?$select=id&$top=999";
 
             okhttp3.Request request = new okhttp3.Request.Builder()
                     .url(url)

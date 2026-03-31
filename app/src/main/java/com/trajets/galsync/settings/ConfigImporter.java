@@ -44,15 +44,18 @@ public class ConfigImporter {
         public final String tenantId;
         public final String redirectUri;
         public final String securityGroupId;
+        public final Boolean nestedGroups;
         public final String filterAttribute;
         public final String filterValue;
 
         ImportedConfig(String clientId, String tenantId, String redirectUri,
-                       String securityGroupId, String filterAttribute, String filterValue) {
+                       String securityGroupId, Boolean nestedGroups,
+                       String filterAttribute, String filterValue) {
             this.clientId = clientId;
             this.tenantId = tenantId;
             this.redirectUri = redirectUri;
             this.securityGroupId = securityGroupId;
+            this.nestedGroups = nestedGroups;
             this.filterAttribute = filterAttribute;
             this.filterValue = filterValue;
         }
@@ -64,6 +67,7 @@ public class ConfigImporter {
             if (tenantId != null) count++;
             if (redirectUri != null) count++;
             if (securityGroupId != null) count++;
+            if (nestedGroups != null) count++;
             if (filterAttribute != null) count++;
             if (filterValue != null) count++;
             return count;
@@ -186,9 +190,24 @@ public class ConfigImporter {
                 extractString(obj, "tenant_id"),
                 extractString(obj, "redirect_uri"),
                 extractString(obj, "security_group_id"),
+                extractBoolean(obj, "nested_groups"),
                 extractString(obj, "filter_attribute"),
                 extractString(obj, "filter_value")
         );
+    }
+
+    /**
+     * Returns the boolean value for the key, or null if absent or not a boolean.
+     */
+    private static Boolean extractBoolean(JsonObject obj, String key) {
+        if (!obj.has(key) || obj.get(key).isJsonNull()) {
+            return null;
+        }
+        try {
+            return obj.get(key).getAsBoolean();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**

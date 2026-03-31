@@ -21,6 +21,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
@@ -35,6 +36,7 @@ public class SettingsManager {
     private static final String KEY_SECURITY_GROUP_ID = "security_group_id";
     private static final String KEY_FILTER_ATTRIBUTE = "filter_attribute";
     private static final String KEY_FILTER_VALUE = "filter_value";
+    private static final String KEY_NESTED_GROUPS_ENABLED = "nested_groups_enabled";
 
     // Sync status keys
     private static final String KEY_SYNC_ENABLED = "sync_enabled";
@@ -132,8 +134,45 @@ public class SettingsManager {
     }
 
     public boolean hasGroupFilter() {
-        String groupId = getSecurityGroupId();
-        return isValidUuid(groupId);
+        List<String> ids = getSecurityGroupIds();
+        return !ids.isEmpty();
+    }
+
+    /**
+     * Parse the security group ID field as a comma-separated list of UUIDs.
+     * Returns only the entries that are valid UUIDs.
+     */
+    public List<String> getSecurityGroupIds() {
+        String raw = getSecurityGroupId().trim();
+        List<String> ids = new ArrayList<>();
+        if (raw.isEmpty()) return ids;
+        for (String part : raw.split(",")) {
+            String trimmed = part.trim();
+            if (isValidUuid(trimmed)) {
+                ids.add(trimmed);
+            }
+        }
+        return ids;
+    }
+
+    /**
+     * Validate that a comma-separated string contains only valid UUIDs.
+     */
+    public static boolean isValidGroupIdList(String value) {
+        if (value == null || value.trim().isEmpty()) return true; // empty is valid (optional)
+        for (String part : value.split(",")) {
+            String trimmed = part.trim();
+            if (!isValidUuid(trimmed)) return false;
+        }
+        return true;
+    }
+
+    public boolean isNestedGroupsEnabled() {
+        return prefs.getBoolean(KEY_NESTED_GROUPS_ENABLED, false);
+    }
+
+    public void setNestedGroupsEnabled(boolean enabled) {
+        prefs.edit().putBoolean(KEY_NESTED_GROUPS_ENABLED, enabled).apply();
     }
 
     public boolean hasAttributeFilter() {
@@ -296,6 +335,16 @@ public class SettingsManager {
             if (filterVal != null && !filterVal.isEmpty()) {
                 setFilterValue(filterVal);
                 Log.d(TAG, "loadDefaults: set filter_value");
+            }
+
+            if (obj.has("galsync_nested_groups") && !obj.get("galsync_nested_groups").isJsonNull()) {
+                try {
+                    boolean nested = obj.get("galsync_nested_groups").getAsBoolean();
+                    setNestedGroupsEnabled(nested);
+                    Log.d(TAG, "loadDefaults: set nested_groups=" + nested);
+                } catch (Exception e) {
+                    Log.w(TAG, "loadDefaults: galsync_nested_groups is not a boolean");
+                }
             }
 
             if (isConfigured()) {
