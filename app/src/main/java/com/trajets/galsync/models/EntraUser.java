@@ -12,6 +12,7 @@ public class EntraUser {
     private byte[] photoData;
     private String managerId;
     private String managerName;
+    private String usageLocation;
 
     public String getId() {
         return id;
@@ -99,6 +100,14 @@ public class EntraUser {
 
     public void setManagerName(String managerName) {
         this.managerName = managerName;
+    }
+
+    public String getUsageLocation() {
+        return usageLocation;
+    }
+
+    public void setUsageLocation(String usageLocation) {
+        this.usageLocation = usageLocation;
     }
 
 }
