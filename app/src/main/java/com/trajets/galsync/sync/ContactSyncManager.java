@@ -228,7 +228,7 @@ public class ContactSyncManager {
             // Téléphone professionnel
             String workPhone = user.getPhoneNumber();
             if (autoCountryCode && workPhone != null) {
-                workPhone = formatPhoneWithCountryCode(workPhone);
+                workPhone = formatPhoneWithCountryCode(workPhone, user.getUsageLocation());
             }
             if (workPhone != null && !workPhone.trim().isEmpty()) {
                 ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
@@ -245,7 +245,7 @@ public class ContactSyncManager {
             // Téléphone mobile
             String mobilePhone = user.getMobilePhone();
             if (autoCountryCode && mobilePhone != null) {
-                mobilePhone = formatPhoneWithCountryCode(mobilePhone);
+                mobilePhone = formatPhoneWithCountryCode(mobilePhone, user.getUsageLocation());
             }
             if (mobilePhone != null && !mobilePhone.trim().isEmpty()) {
                 if (workPhone == null || !mobilePhone.equals(workPhone)) {
@@ -382,10 +382,10 @@ public class ContactSyncManager {
                 String attr = settingsManager.getFilterAttribute().trim();
                 // Sanitize filter value: escape single quotes for OData
                 String val = settingsManager.getFilterValue().trim().replace("'", "''");
-                url = "https://graph.microsoft.com/v1.0/users?$filter=accountEnabled eq true and " + attr + " eq '" + val + "'&$select=id,displayName,mail,businessPhones,mobilePhone,jobTitle,department,officeLocation,userPrincipalName&$top=999";
+                url = "https://graph.microsoft.com/v1.0/users?$filter=accountEnabled eq true and " + attr + " eq '" + val + "'&$select=id,displayName,mail,businessPhones,mobilePhone,jobTitle,department,officeLocation,userPrincipalName,usageLocation&$top=999";
                 Log.d(TAG, "Filtre par attribut: " + attr + " = " + val);
             } else {
-                url = "https://graph.microsoft.com/v1.0/users?$filter=accountEnabled eq true&$select=id,displayName,mail,businessPhones,mobilePhone,jobTitle,department,officeLocation,userPrincipalName&$top=999";
+                url = "https://graph.microsoft.com/v1.0/users?$filter=accountEnabled eq true&$select=id,displayName,mail,businessPhones,mobilePhone,jobTitle,department,officeLocation,userPrincipalName,usageLocation&$top=999";
             }
 
             Log.d(TAG, "URL: " + url);
@@ -501,6 +501,10 @@ public class ContactSyncManager {
 
                     if (userJson.has("officeLocation") && !userJson.get("officeLocation").isJsonNull()) {
                         entraUser.setOfficeLocation(userJson.get("officeLocation").getAsString());
+                    }
+
+                    if (userJson.has("usageLocation") && !userJson.get("usageLocation").isJsonNull()) {
+                        entraUser.setUsageLocation(userJson.get("usageLocation").getAsString());
                     }
 
                     users.add(entraUser);
@@ -644,9 +648,10 @@ public class ContactSyncManager {
     /**
      * If auto country code is enabled, prepend the international dialing prefix
      * to phone numbers that don't already have one (starting with + or 00).
-     * The country is detected from the device's SIM or network locale.
+     * The country is determined from the user's Entra ID usageLocation property,
+     * falling back to the device's SIM/network/locale if usageLocation is not set.
      */
-    private String formatPhoneWithCountryCode(String phone) {
+    private String formatPhoneWithCountryCode(String phone, String usageLocation) {
         if (phone == null || phone.trim().isEmpty()) return phone;
 
         String trimmed = phone.trim();
@@ -655,20 +660,31 @@ public class ContactSyncManager {
             return trimmed;
         }
 
-        String countryCode = getDeviceCountryDialCode();
-        if (countryCode == null) return trimmed;
+        // Use the user's usageLocation first, fall back to device country
+        String dialCode = null;
+        if (usageLocation != null && !usageLocation.trim().isEmpty()) {
+            dialCode = COUNTRY_DIAL_CODES.get(usageLocation.trim().toUpperCase());
+            if (dialCode != null) {
+                Log.d(TAG, "usageLocation: " + usageLocation + " -> dial code: " + dialCode);
+            }
+        }
+        if (dialCode == null) {
+            dialCode = getDeviceCountryDialCode();
+        }
+        if (dialCode == null) return trimmed;
 
         // Remove leading 0 (local trunk prefix) before prepending country code
         if (trimmed.startsWith("0")) {
             trimmed = trimmed.substring(1);
         }
 
-        return countryCode + trimmed;
+        return dialCode + trimmed;
     }
 
     /**
-     * Returns the international dialing code (e.g. "+41" for Switzerland, "+33" for France)
-     * based on the device's SIM country or network country.
+     * Fallback: returns the international dialing code based on the device's
+     * SIM country, network country, or locale. Only used when the Entra ID
+     * user has no usageLocation set.
      */
     private String getDeviceCountryDialCode() {
         try {
@@ -687,7 +703,7 @@ public class ContactSyncManager {
 
             String dialCode = COUNTRY_DIAL_CODES.get(countryIso.toUpperCase());
             if (dialCode != null) {
-                Log.d(TAG, "Country ISO: " + countryIso + " -> dial code: " + dialCode);
+                Log.d(TAG, "Device country ISO: " + countryIso + " -> dial code: " + dialCode);
             }
             return dialCode;
         } catch (Exception e) {
