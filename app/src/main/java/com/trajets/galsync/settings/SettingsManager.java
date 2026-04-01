@@ -449,7 +449,7 @@ public class SettingsManager {
         // Use Gson to safely build the JSON and avoid injection
         com.google.gson.JsonObject config = new com.google.gson.JsonObject();
         config.addProperty("client_id", clientId);
-        config.addProperty("authorization_user_agent", "DEFAULT");
+        config.addProperty("authorization_user_agent", "BROWSER");
         config.addProperty("redirect_uri", redirectUri);
         config.addProperty("account_mode", "SINGLE");
         config.addProperty("broker_redirect_uri_registered", false);

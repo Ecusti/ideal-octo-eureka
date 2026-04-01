@@ -12,13 +12,18 @@ import com.microsoft.identity.client.ISingleAccountPublicClientApplication;
 import com.microsoft.identity.client.PublicClientApplication;
 import com.microsoft.identity.client.SilentAuthenticationCallback;
 import com.microsoft.identity.client.exception.MsalException;
+import com.microsoft.identity.client.exception.MsalUiRequiredException;
 import com.trajets.galsync.settings.SettingsManager;
 
 import java.io.File;
 
 public class AuthManager {
     private static final String TAG = "AuthManager";
-    private static final String[] SCOPES = {"User.Read", "User.ReadBasic.All", "Contacts.Read"};
+    private static final String[] SCOPES = {
+            "User.Read",
+            "User.Read.All",
+            "GroupMember.Read.All"
+    };
 
     private final Context context;
     private Activity activity;
@@ -232,7 +237,15 @@ public class AuthManager {
                                 }
 
                                 public void onError(MsalException exception) {
-                                    callback.onError(exception);
+                                    // If MFA or interaction is required (e.g. Conditional Access,
+                                    // expired MFA claim, consent needed), fall back to interactive
+                                    // sign-in so the user can complete the MFA challenge.
+                                    if (exception instanceof MsalUiRequiredException && activity != null) {
+                                        Log.d(TAG, "Token silencieux refusé (MFA/interaction requise), basculement vers connexion interactive");
+                                        performInteractiveSignIn(callback);
+                                    } else {
+                                        callback.onError(exception);
+                                    }
                                 }
                             });
                 } else {
