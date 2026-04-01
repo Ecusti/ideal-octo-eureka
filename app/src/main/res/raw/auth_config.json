@@ -1,13 +1,13 @@
 {
   "client_id": "PLACEHOLDER",
   "tenant_id": "PLACEHOLDER",
-  "redirect_uri": "msauth://com.trajets.galsync2/PLACEHOLDER",
+  "redirect_uri": "msauth://PLACEHOLDER",
   "account_mode": "SINGLE",
   "broker_redirect_uri_registered": false,
   "authorities": [
     {
       "type": "AAD",
-      "authority_url": "https://login.microsoftonline.com/PLACEHOLDER",
+      "authority_url": "https://login.microsoftonline.com/common",
       "default": true
     }
   ],
