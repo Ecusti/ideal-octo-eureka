@@ -234,7 +234,7 @@ public class AuthManager {
         msalApp.getCurrentAccountAsync(new ISingleAccountPublicClientApplication.CurrentAccountCallback() {
             public void onAccountLoaded(IAccount activeAccount) {
                 if (activeAccount != null) {
-                    AcquireTokenSilentParameters silentParams = AcquireTokenSilentParameters.builder()
+                    AcquireTokenSilentParameters silentParams = new AcquireTokenSilentParameters.Builder()
                             .withScopes(Arrays.asList(SCOPES))
                             .forAccount(activeAccount)
                             .fromAuthority(activeAccount.getAuthority())
