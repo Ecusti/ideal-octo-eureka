@@ -11,6 +11,8 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -23,7 +25,6 @@ import com.trajets.galsync.sync.ContactSyncManager;
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "GalSync";
     private static final int PERMISSIONS_REQUEST_CODE = 100;
-    private static final int SETTINGS_REQUEST_CODE = 200;
 
     private AuthManager authManager;
     private ContactSyncManager syncManager;
@@ -35,6 +36,18 @@ public class MainActivity extends AppCompatActivity {
     private Button btnSettings;
     private TextView tvStatus;
     private ProgressBar progressBar;
+
+    private final ActivityResultLauncher<Intent> settingsLauncher =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == RESULT_OK) {
+                    initializeManagers();
+                    scheduleAutoSync();
+                    if (settingsManager.isConfigured()) {
+                        checkExistingAccount();
+                    }
+                    updateUI();
+                }
+            });
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -56,7 +69,7 @@ public class MainActivity extends AppCompatActivity {
 
         checkPermissions();
 
-        new android.os.Handler().postDelayed(new Runnable() {
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
             public void run() {
                 updateUI();
             }
@@ -119,7 +132,7 @@ public class MainActivity extends AppCompatActivity {
         btnSettings.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
-                startActivityForResult(intent, SETTINGS_REQUEST_CODE);
+                settingsLauncher.launch(intent);
             }
         });
     }
@@ -257,19 +270,6 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == SETTINGS_REQUEST_CODE && resultCode == RESULT_OK) {
-            initializeManagers();
-            scheduleAutoSync();
-            if (settingsManager.isConfigured()) {
-                checkExistingAccount();
-            }
-            updateUI();
-        }
-    }
-
     private void updateUI() {
         boolean configured = settingsManager.isConfigured();
         boolean isSignedIn = configured && authManager.isSignedIn();
@@ -337,7 +337,7 @@ public class MainActivity extends AppCompatActivity {
 
         androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork(
                 "contact_sync",
-                androidx.work.ExistingPeriodicWorkPolicy.REPLACE,
+                androidx.work.ExistingPeriodicWorkPolicy.UPDATE,
                 syncWorkRequest
         );
 

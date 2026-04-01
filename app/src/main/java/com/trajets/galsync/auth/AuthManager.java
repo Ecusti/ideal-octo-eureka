@@ -4,18 +4,21 @@ import android.app.Activity;
 import android.content.Context;
 import android.util.Log;
 
+import com.microsoft.identity.client.AcquireTokenSilentParameters;
 import com.microsoft.identity.client.AuthenticationCallback;
 import com.microsoft.identity.client.IAccount;
 import com.microsoft.identity.client.IAuthenticationResult;
 import com.microsoft.identity.client.IPublicClientApplication;
 import com.microsoft.identity.client.ISingleAccountPublicClientApplication;
 import com.microsoft.identity.client.PublicClientApplication;
+import com.microsoft.identity.client.SignInParameters;
 import com.microsoft.identity.client.SilentAuthenticationCallback;
 import com.microsoft.identity.client.exception.MsalException;
 import com.microsoft.identity.client.exception.MsalUiRequiredException;
 import com.trajets.galsync.settings.SettingsManager;
 
 import java.io.File;
+import java.util.Arrays;
 
 public class AuthManager {
     private static final String TAG = "AuthManager";
@@ -63,10 +66,6 @@ public class AuthManager {
 
         SettingsManager settingsManager = new SettingsManager(context);
 
-        // Don't attempt MSAL init if settings aren't configured yet.
-        // The bundled auth_config.json may contain PLACEHOLDER values whose
-        // redirect_uri won't match the AndroidManifest intent-filter, causing
-        // MSAL to throw a fatal MsalClientException.
         if (!settingsManager.isConfigured()) {
             Log.d(TAG, "Settings non configurés — MSAL non initialisé (l'utilisateur doit configurer les paramètres)");
             msalInitError = "Paramètres Entra ID non configurés";
@@ -165,7 +164,6 @@ public class AuthManager {
             }
         }
 
-        // Vérifier d'abord si un compte est déjà connecté
         msalApp.getCurrentAccountAsync(new ISingleAccountPublicClientApplication.CurrentAccountCallback() {
             public void onAccountLoaded(IAccount activeAccount) {
                 if (activeAccount != null) {
@@ -193,23 +191,30 @@ public class AuthManager {
         }
 
         Log.d(TAG, "Lancement de la connexion MSAL interactive...");
-        msalApp.signIn(activity, null, SCOPES, new AuthenticationCallback() {
-            public void onSuccess(IAuthenticationResult authenticationResult) {
-                accessToken = authenticationResult.getAccessToken();
-                Log.d(TAG, "Connexion réussie");
-                callback.onSuccess(accessToken);
-            }
 
-            public void onError(MsalException exception) {
-                Log.e(TAG, "Erreur de connexion", exception);
-                callback.onError(exception);
-            }
+        SignInParameters signInParams = SignInParameters.builder()
+                .withActivity(activity)
+                .withScopes(Arrays.asList(SCOPES))
+                .withCallback(new AuthenticationCallback() {
+                    public void onSuccess(IAuthenticationResult authenticationResult) {
+                        accessToken = authenticationResult.getAccessToken();
+                        Log.d(TAG, "Connexion réussie");
+                        callback.onSuccess(accessToken);
+                    }
 
-            public void onCancel() {
-                Log.d(TAG, "Connexion annulée par l'utilisateur");
-                callback.onError(new Exception("Connexion annulée par utilisateur"));
-            }
-        });
+                    public void onError(MsalException exception) {
+                        Log.e(TAG, "Erreur de connexion", exception);
+                        callback.onError(exception);
+                    }
+
+                    public void onCancel() {
+                        Log.d(TAG, "Connexion annulée par l'utilisateur");
+                        callback.onError(new Exception("Connexion annulée par utilisateur"));
+                    }
+                })
+                .build();
+
+        msalApp.signIn(signInParams);
     }
 
     public void acquireTokenSilently(final AuthCallback callback) {
@@ -229,17 +234,17 @@ public class AuthManager {
         msalApp.getCurrentAccountAsync(new ISingleAccountPublicClientApplication.CurrentAccountCallback() {
             public void onAccountLoaded(IAccount activeAccount) {
                 if (activeAccount != null) {
-                    msalApp.acquireTokenSilentAsync(SCOPES, activeAccount.getAuthority(),
-                            new SilentAuthenticationCallback() {
+                    AcquireTokenSilentParameters silentParams = AcquireTokenSilentParameters.builder()
+                            .withScopes(Arrays.asList(SCOPES))
+                            .forAccount(activeAccount)
+                            .fromAuthority(activeAccount.getAuthority())
+                            .withCallback(new SilentAuthenticationCallback() {
                                 public void onSuccess(IAuthenticationResult authenticationResult) {
                                     accessToken = authenticationResult.getAccessToken();
                                     callback.onSuccess(accessToken);
                                 }
 
                                 public void onError(MsalException exception) {
-                                    // If MFA or interaction is required (e.g. Conditional Access,
-                                    // expired MFA claim, consent needed), fall back to interactive
-                                    // sign-in so the user can complete the MFA challenge.
                                     if (exception instanceof MsalUiRequiredException && activity != null) {
                                         Log.d(TAG, "Token silencieux refusé (MFA/interaction requise), basculement vers connexion interactive");
                                         performInteractiveSignIn(callback);
@@ -247,7 +252,10 @@ public class AuthManager {
                                         callback.onError(exception);
                                     }
                                 }
-                            });
+                            })
+                            .build();
+
+                    msalApp.acquireTokenSilentAsync(silentParams);
                 } else {
                     callback.onError(new Exception("Aucun compte actif"));
                 }
