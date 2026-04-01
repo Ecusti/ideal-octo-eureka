@@ -311,18 +311,8 @@ public class ContactSyncManager {
                         .build());
             }
 
-            // Teams links
+            // Teams link
             if (user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
-                ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                        .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
-                        .withValue(ContactsContract.Data.MIMETYPE,
-                                ContactsContract.CommonDataKinds.Im.CONTENT_ITEM_TYPE)
-                        .withValue(ContactsContract.CommonDataKinds.Im.DATA,
-                                user.getEmail())
-                        .withValue(ContactsContract.CommonDataKinds.Im.PROTOCOL,
-                                ContactsContract.CommonDataKinds.Im.PROTOCOL_SKYPE)
-                        .build());
-
                 String teamsLink = "https://teams.microsoft.com/l/chat/0/0?users=" + user.getEmail();
                 ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
                         .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
