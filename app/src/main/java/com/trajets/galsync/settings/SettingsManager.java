@@ -282,6 +282,30 @@ public class SettingsManager {
             String clientId = getJsonString(obj, "client_id");
             String tenantId = getJsonString(obj, "tenant_id");
 
+            // Extract tenant ID from authority_url if not provided as a separate field.
+            // MSAL configs typically embed the tenant in the authority URL rather than
+            // as a standalone "tenant_id" field.
+            if ((tenantId == null || tenantId.isEmpty() || "PLACEHOLDER".equalsIgnoreCase(tenantId))
+                    && obj.has("authorities")) {
+                JsonArray authorities = obj.getAsJsonArray("authorities");
+                if (authorities.size() > 0) {
+                    JsonObject auth = authorities.get(0).getAsJsonObject();
+                    String url = getJsonString(auth, "authority_url");
+                    if (url != null && url.contains("microsoftonline.com/")) {
+                        String[] parts = url.split("microsoftonline.com/");
+                        if (parts.length > 1 && !parts[1].isEmpty()) {
+                            String extracted = parts[1].replace("/", "");
+                            if (!"common".equalsIgnoreCase(extracted)
+                                    && !"organizations".equalsIgnoreCase(extracted)
+                                    && !"consumers".equalsIgnoreCase(extracted)) {
+                                tenantId = extracted;
+                                Log.d(TAG, "loadDefaults: extracted tenant_id from authority_url: " + tenantId);
+                            }
+                        }
+                    }
+                }
+            }
+
             Log.d(TAG, "loadDefaults: client_id='" + clientId + "', tenant_id='" + tenantId + "'");
 
             // If the bundled config still has placeholder values, skip auto-fill.
@@ -290,22 +314,6 @@ public class SettingsManager {
                     || "PLACEHOLDER".equalsIgnoreCase(tenantId)) {
                 Log.d(TAG, "loadDefaults: skipped — PLACEHOLDER values detected");
                 return;
-            }
-
-            // Extract tenant ID from authority_url as fallback
-            if (tenantId.isEmpty() && obj.has("authorities")) {
-                JsonArray authorities = obj.getAsJsonArray("authorities");
-                if (authorities.size() > 0) {
-                    JsonObject auth = authorities.get(0).getAsJsonObject();
-                    String url = getJsonString(auth, "authority_url");
-                    if (url != null && url.contains("microsoftonline.com/")) {
-                        String[] parts = url.split("microsoftonline.com/");
-                        if (parts.length > 1 && !parts[1].isEmpty()) {
-                            tenantId = parts[1].replace("/", "");
-                            Log.d(TAG, "loadDefaults: extracted tenant_id from authority_url: " + tenantId);
-                        }
-                    }
-                }
             }
 
             // Apply bundled values to settings
