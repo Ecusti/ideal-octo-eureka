@@ -265,9 +265,12 @@ public class SettingsManager {
      * Call this once from MainActivity.onCreate().
      */
     public void loadDefaultsIfNeeded(int rawResourceId) {
-        if (hasUserConfigured()) {
-            Log.d(TAG, "loadDefaults: skipped — user has already configured settings");
+        if (hasUserConfigured() && isConfigured()) {
+            Log.d(TAG, "loadDefaults: skipped — user has already configured valid settings");
             return;
+        }
+        if (hasUserConfigured() && !isConfigured()) {
+            Log.d(TAG, "loadDefaults: user_has_configured flag was set but settings are empty — reloading defaults");
         }
 
         try {

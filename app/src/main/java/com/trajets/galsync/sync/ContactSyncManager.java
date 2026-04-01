@@ -4,6 +4,8 @@ import android.content.ContentProviderOperation;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.provider.ContactsContract;
 import android.util.Log;
 
@@ -584,6 +586,9 @@ public class ContactSyncManager {
         }
     }
 
+    private static final int MAX_PHOTO_DIMENSION = 256;
+    private static final int PHOTO_JPEG_QUALITY = 80;
+
     private void fetchUserPhoto(okhttp3.OkHttpClient client, String accessToken, String userId, EntraUser entraUser) {
         try {
             String photoUrl = "https://graph.microsoft.com/v1.0/users/" + userId + "/photo/$value";
@@ -598,13 +603,65 @@ public class ContactSyncManager {
             if (response.isSuccessful() && response.body() != null) {
                 byte[] photoBytes = response.body().bytes();
                 if (photoBytes.length > 0) {
-                    entraUser.setPhotoData(photoBytes);
+                    byte[] compressed = compressPhoto(photoBytes);
+                    if (compressed != null) {
+                        entraUser.setPhotoData(compressed);
+                    }
                 }
             } else if (response.body() != null) {
                 response.body().close();
             }
         } catch (Exception e) {
             // Silencieux
+        }
+    }
+
+    /**
+     * Resize and compress a photo to fit within the Android Binder transaction limit.
+     * Photos are scaled down to 256x256 max and compressed as JPEG.
+     */
+    private byte[] compressPhoto(byte[] originalBytes) {
+        try {
+            // Decode dimensions only first
+            BitmapFactory.Options opts = new BitmapFactory.Options();
+            opts.inJustDecodeBounds = true;
+            BitmapFactory.decodeByteArray(originalBytes, 0, originalBytes.length, opts);
+
+            if (opts.outWidth <= 0 || opts.outHeight <= 0) return null;
+
+            // Calculate sample size to reduce memory usage during decode
+            int maxDim = Math.max(opts.outWidth, opts.outHeight);
+            int sampleSize = 1;
+            while (maxDim / sampleSize > MAX_PHOTO_DIMENSION * 2) {
+                sampleSize *= 2;
+            }
+
+            opts.inJustDecodeBounds = false;
+            opts.inSampleSize = sampleSize;
+            Bitmap bitmap = BitmapFactory.decodeByteArray(originalBytes, 0, originalBytes.length, opts);
+            if (bitmap == null) return null;
+
+            // Scale to final size if still too large
+            int width = bitmap.getWidth();
+            int height = bitmap.getHeight();
+            if (width > MAX_PHOTO_DIMENSION || height > MAX_PHOTO_DIMENSION) {
+                float scale = Math.min(
+                        (float) MAX_PHOTO_DIMENSION / width,
+                        (float) MAX_PHOTO_DIMENSION / height);
+                int newWidth = Math.round(width * scale);
+                int newHeight = Math.round(height * scale);
+                Bitmap scaled = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true);
+                bitmap.recycle();
+                bitmap = scaled;
+            }
+
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, PHOTO_JPEG_QUALITY, baos);
+            bitmap.recycle();
+            return baos.toByteArray();
+        } catch (Exception e) {
+            Log.w(TAG, "Erreur lors de la compression de la photo", e);
+            return null;
         }
     }
 
