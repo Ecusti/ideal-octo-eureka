@@ -97,31 +97,57 @@ public class AuthManager {
             return;
         }
 
-        PublicClientApplication.createSingleAccountPublicClientApplication(
-                context, configFile,
-                new IPublicClientApplication.ISingleAccountApplicationCreatedListener() {
-                    public void onCreated(ISingleAccountPublicClientApplication application) {
-                        msalApp = application;
-                        isInitializing = false;
-                        msalInitError = null;
-                        Log.d(TAG, "MSAL initialisé avec succès (broker=" + withBroker + ")");
-                    }
+        // Log the generated config for debugging
+        try {
+            java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.FileReader(configFile));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) sb.append(line).append("\n");
+            reader.close();
+            Log.d(TAG, "MSAL config (broker=" + withBroker + "):\n" + sb.toString());
+        } catch (Exception e) {
+            Log.w(TAG, "Could not log config file");
+        }
 
-                    public void onError(MsalException exception) {
-                        if (withBroker) {
-                            // Broker init failed (work profile, Authenticator not reachable, etc.)
-                            // Retry without broker — use browser auth instead
-                            Log.w(TAG, "MSAL broker init échoué: " + exception.getMessage()
-                                    + " — tentative sans broker...");
-                            initializeMsalWithConfig(settingsManager, false);
-                        } else {
-                            // Both broker and non-broker failed
+        try {
+            PublicClientApplication.createSingleAccountPublicClientApplication(
+                    context, configFile,
+                    new IPublicClientApplication.ISingleAccountApplicationCreatedListener() {
+                        public void onCreated(ISingleAccountPublicClientApplication application) {
+                            msalApp = application;
                             isInitializing = false;
-                            msalInitError = exception.getMessage();
-                            Log.e(TAG, "MSAL init échoué (toutes tentatives): " + msalInitError, exception);
+                            msalInitError = null;
+                            Log.d(TAG, "MSAL initialisé avec succès (broker=" + withBroker + ")");
                         }
-                    }
-                });
+
+                        public void onError(MsalException exception) {
+                            Log.e(TAG, "MSAL init onError (broker=" + withBroker + "): "
+                                    + exception.getClass().getSimpleName() + " — " + exception.getMessage(), exception);
+                            if (withBroker) {
+                                Log.w(TAG, "Tentative sans broker...");
+                                initializeMsalWithConfig(settingsManager, false);
+                            } else {
+                                isInitializing = false;
+                                msalInitError = exception.getMessage();
+                                Log.e(TAG, "MSAL init échoué (toutes tentatives): " + msalInitError);
+                            }
+                        }
+                    });
+        } catch (Exception e) {
+            // createSingleAccountPublicClientApplication can throw synchronously
+            // on some devices / work profile configurations
+            Log.e(TAG, "MSAL init exception (broker=" + withBroker + "): "
+                    + e.getClass().getSimpleName() + " — " + e.getMessage(), e);
+            if (withBroker) {
+                Log.w(TAG, "Tentative sans broker après exception...");
+                initializeMsalWithConfig(settingsManager, false);
+            } else {
+                isInitializing = false;
+                msalInitError = e.getMessage();
+                Log.e(TAG, "MSAL init échoué (toutes tentatives après exception): " + msalInitError);
+            }
+        }
     }
 
     public void checkSignedInAccount(final AuthCallback callback) {
