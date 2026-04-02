@@ -392,18 +392,56 @@ public class SettingsManager {
 
     /**
      * Read the redirect_uri that matches the BrowserTabActivity intent-filter
-     * declared in the AndroidManifest. This ensures the MSAL config always
-     * matches the manifest, regardless of what the user entered in settings.
+     * declared in the AndroidManifest.
+     *
+     * Uses multiple strategies to work across all device types including
+     * Samsung Knox work profiles where queryIntentActivities() may fail.
      */
     private String getRedirectUriFromManifest() {
+        // Strategy 1: Read BrowserTabActivity intent-filter directly from our own package
         try {
-            // Query for activities that handle msauth:// intents
+            PackageManager pm = context.getPackageManager();
+            android.content.pm.PackageInfo pkgInfo = pm.getPackageInfo(
+                    context.getPackageName(),
+                    PackageManager.GET_ACTIVITIES | PackageManager.GET_META_DATA);
+
+            if (pkgInfo.activities != null) {
+                for (android.content.pm.ActivityInfo actInfo : pkgInfo.activities) {
+                    if ("com.microsoft.identity.client.BrowserTabActivity".equals(actInfo.name)) {
+                        // Found the BrowserTabActivity — now query its intent-filter
+                        return getRedirectUriViaIntentQuery(pm);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Strategy 1 (getPackageInfo) failed", e);
+        }
+
+        // Strategy 2: Query intent activities directly
+        String uri = getRedirectUriViaIntentQuery(context.getPackageManager());
+        if (uri != null) return uri;
+
+        // Strategy 3: Build from known package name and signature hash
+        // This matches the BrowserTabActivity intent-filter in AndroidManifest.xml:
+        //   host="com.trajets.galsync2" path="/m45g9VrDROQ8Bqy9zxEAICN2KKA="
+        String packageName = context.getPackageName();
+        if ("com.trajets.galsync2".equals(packageName)) {
+            String fallback = "msauth://com.trajets.galsync2/m45g9VrDROQ8Bqy9zxEAICN2KKA%3D";
+            Log.d(TAG, "Redirect URI from hardcoded fallback: " + fallback);
+            return fallback;
+        }
+
+        Log.w(TAG, "Could not determine redirect_uri from any strategy");
+        return null;
+    }
+
+    private String getRedirectUriViaIntentQuery(PackageManager pm) {
+        try {
             Intent intent = new Intent(Intent.ACTION_VIEW);
             intent.addCategory(Intent.CATEGORY_DEFAULT);
             intent.addCategory(Intent.CATEGORY_BROWSABLE);
             intent.setData(Uri.parse("msauth://placeholder"));
 
-            PackageManager pm = context.getPackageManager();
             List<ResolveInfo> activities = pm.queryIntentActivities(intent,
                     PackageManager.GET_RESOLVED_FILTER);
 
@@ -411,22 +449,20 @@ public class SettingsManager {
                 if (info.activityInfo != null
                         && "com.microsoft.identity.client.BrowserTabActivity"
                                 .equals(info.activityInfo.name)) {
-                    // Found it — reconstruct the redirect_uri from the intent-filter
                     if (info.filter != null && info.filter.countDataAuthorities() > 0
                             && info.filter.countDataPaths() > 0) {
                         String scheme = "msauth";
                         String host = info.filter.getDataAuthority(0).getHost();
                         String path = info.filter.getDataPath(0).getPath();
-                        // URL-encode the path (especially the '=' at the end)
                         String encodedPath = Uri.encode(path, "/");
                         String uri = scheme + "://" + host + encodedPath;
-                        Log.d(TAG, "Redirect URI from manifest: " + uri);
+                        Log.d(TAG, "Redirect URI from intent query: " + uri);
                         return uri;
                     }
                 }
             }
         } catch (Exception e) {
-            Log.w(TAG, "Could not read redirect_uri from manifest", e);
+            Log.w(TAG, "Intent query for redirect_uri failed", e);
         }
         return null;
     }
@@ -436,6 +472,14 @@ public class SettingsManager {
      * and write it to internal storage.
      */
     public File generateAuthConfig() {
+        return generateAuthConfig(true);
+    }
+
+    /**
+     * Generate the MSAL auth_config.json with optional broker support.
+     * @param withBroker true to enable broker (Microsoft Authenticator), false for browser-only
+     */
+    public File generateAuthConfig(boolean withBroker) {
         if (!isConfigured()) {
             return null;
         }
@@ -460,10 +504,18 @@ public class SettingsManager {
         // Use Gson to safely build the JSON and avoid injection
         com.google.gson.JsonObject config = new com.google.gson.JsonObject();
         config.addProperty("client_id", clientId);
-        config.addProperty("authorization_user_agent", "DEFAULT");
         config.addProperty("redirect_uri", redirectUri);
         config.addProperty("account_mode", "SINGLE");
-        config.addProperty("broker_redirect_uri_registered", true);
+
+        if (withBroker) {
+            // Broker mode: let MSAL pick the best option (Authenticator > browser)
+            config.addProperty("authorization_user_agent", "DEFAULT");
+            config.addProperty("broker_redirect_uri_registered", true);
+        } else {
+            // Browser-only mode: fallback when broker is unavailable (work profile, etc.)
+            config.addProperty("authorization_user_agent", "BROWSER");
+            config.addProperty("broker_redirect_uri_registered", false);
+        }
 
         com.google.gson.JsonObject authority = new com.google.gson.JsonObject();
         authority.addProperty("type", "AAD");
@@ -475,6 +527,8 @@ public class SettingsManager {
         config.add("authorities", authorities);
 
         String json = new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(config);
+
+        Log.d(TAG, "generateAuthConfig: broker=" + withBroker);
 
         try {
             File configFile = new File(context.getFilesDir(), "auth_config_dynamic.json");

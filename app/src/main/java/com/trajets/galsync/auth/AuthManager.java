@@ -67,41 +67,87 @@ public class AuthManager {
         SettingsManager settingsManager = new SettingsManager(context);
 
         if (!settingsManager.isConfigured()) {
-            Log.d(TAG, "Settings non configurés — MSAL non initialisé (l'utilisateur doit configurer les paramètres)");
+            Log.d(TAG, "Settings non configurés — MSAL non initialisé");
             msalInitError = "Paramètres Entra ID non configurés";
             return;
         }
 
         isInitializing = true;
         msalInitError = null;
-        Log.d(TAG, "Démarrage de l'initialisation MSAL...");
 
-        File configFile = settingsManager.generateAuthConfig();
+        // Try with broker first (supports phishing-resistant MFA via Authenticator).
+        // If broker init fails (e.g. work profile isolation), automatically
+        // retry with browser-only mode.
+        initializeMsalWithConfig(settingsManager, true);
+    }
+
+    private void initializeMsalWithConfig(SettingsManager settingsManager, boolean withBroker) {
+        Log.d(TAG, "Initialisation MSAL (broker=" + withBroker + ")...");
+
+        File configFile = settingsManager.generateAuthConfig(withBroker);
         if (configFile == null || !configFile.exists()) {
+            if (withBroker) {
+                Log.w(TAG, "Config broker échouée, tentative sans broker...");
+                initializeMsalWithConfig(settingsManager, false);
+                return;
+            }
             isInitializing = false;
             msalInitError = "Impossible de générer le fichier de configuration MSAL";
             Log.e(TAG, msalInitError);
             return;
         }
 
-        Log.d(TAG, "Utilisation de la configuration dynamique: " + configFile.getAbsolutePath());
+        // Log the generated config for debugging
+        try {
+            java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.FileReader(configFile));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) sb.append(line).append("\n");
+            reader.close();
+            Log.d(TAG, "MSAL config (broker=" + withBroker + "):\n" + sb.toString());
+        } catch (Exception e) {
+            Log.w(TAG, "Could not log config file");
+        }
 
-        PublicClientApplication.createSingleAccountPublicClientApplication(
-                context, configFile,
-                new IPublicClientApplication.ISingleAccountApplicationCreatedListener() {
-                    public void onCreated(ISingleAccountPublicClientApplication application) {
-                        msalApp = application;
-                        isInitializing = false;
-                        msalInitError = null;
-                        Log.d(TAG, "MSAL initialisé avec succès");
-                    }
+        try {
+            PublicClientApplication.createSingleAccountPublicClientApplication(
+                    context, configFile,
+                    new IPublicClientApplication.ISingleAccountApplicationCreatedListener() {
+                        public void onCreated(ISingleAccountPublicClientApplication application) {
+                            msalApp = application;
+                            isInitializing = false;
+                            msalInitError = null;
+                            Log.d(TAG, "MSAL initialisé avec succès (broker=" + withBroker + ")");
+                        }
 
-                    public void onError(MsalException exception) {
-                        isInitializing = false;
-                        msalInitError = exception.getMessage();
-                        Log.e(TAG, "Erreur initialisation MSAL: " + msalInitError, exception);
-                    }
-                });
+                        public void onError(MsalException exception) {
+                            Log.e(TAG, "MSAL init onError (broker=" + withBroker + "): "
+                                    + exception.getClass().getSimpleName() + " — " + exception.getMessage(), exception);
+                            if (withBroker) {
+                                Log.w(TAG, "Tentative sans broker...");
+                                initializeMsalWithConfig(settingsManager, false);
+                            } else {
+                                isInitializing = false;
+                                msalInitError = exception.getMessage();
+                                Log.e(TAG, "MSAL init échoué (toutes tentatives): " + msalInitError);
+                            }
+                        }
+                    });
+        } catch (Exception e) {
+            // createSingleAccountPublicClientApplication can throw synchronously
+            // on some devices / work profile configurations
+            Log.e(TAG, "MSAL init exception (broker=" + withBroker + "): "
+                    + e.getClass().getSimpleName() + " — " + e.getMessage(), e);
+            if (withBroker) {
+                Log.w(TAG, "Tentative sans broker après exception...");
+                initializeMsalWithConfig(settingsManager, false);
+            } else {
+                isInitializing = false;
+                msalInitError = e.getMessage();
+                Log.e(TAG, "MSAL init échoué (toutes tentatives après exception): " + msalInitError);
+            }
+        }
     }
 
     public void checkSignedInAccount(final AuthCallback callback) {
