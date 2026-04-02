@@ -67,24 +67,35 @@ public class AuthManager {
         SettingsManager settingsManager = new SettingsManager(context);
 
         if (!settingsManager.isConfigured()) {
-            Log.d(TAG, "Settings non configurés — MSAL non initialisé (l'utilisateur doit configurer les paramètres)");
+            Log.d(TAG, "Settings non configurés — MSAL non initialisé");
             msalInitError = "Paramètres Entra ID non configurés";
             return;
         }
 
         isInitializing = true;
         msalInitError = null;
-        Log.d(TAG, "Démarrage de l'initialisation MSAL...");
 
-        File configFile = settingsManager.generateAuthConfig();
+        // Try with broker first (supports phishing-resistant MFA via Authenticator).
+        // If broker init fails (e.g. work profile isolation), automatically
+        // retry with browser-only mode.
+        initializeMsalWithConfig(settingsManager, true);
+    }
+
+    private void initializeMsalWithConfig(SettingsManager settingsManager, boolean withBroker) {
+        Log.d(TAG, "Initialisation MSAL (broker=" + withBroker + ")...");
+
+        File configFile = settingsManager.generateAuthConfig(withBroker);
         if (configFile == null || !configFile.exists()) {
+            if (withBroker) {
+                Log.w(TAG, "Config broker échouée, tentative sans broker...");
+                initializeMsalWithConfig(settingsManager, false);
+                return;
+            }
             isInitializing = false;
             msalInitError = "Impossible de générer le fichier de configuration MSAL";
             Log.e(TAG, msalInitError);
             return;
         }
-
-        Log.d(TAG, "Utilisation de la configuration dynamique: " + configFile.getAbsolutePath());
 
         PublicClientApplication.createSingleAccountPublicClientApplication(
                 context, configFile,
@@ -93,13 +104,22 @@ public class AuthManager {
                         msalApp = application;
                         isInitializing = false;
                         msalInitError = null;
-                        Log.d(TAG, "MSAL initialisé avec succès");
+                        Log.d(TAG, "MSAL initialisé avec succès (broker=" + withBroker + ")");
                     }
 
                     public void onError(MsalException exception) {
-                        isInitializing = false;
-                        msalInitError = exception.getMessage();
-                        Log.e(TAG, "Erreur initialisation MSAL: " + msalInitError, exception);
+                        if (withBroker) {
+                            // Broker init failed (work profile, Authenticator not reachable, etc.)
+                            // Retry without broker — use browser auth instead
+                            Log.w(TAG, "MSAL broker init échoué: " + exception.getMessage()
+                                    + " — tentative sans broker...");
+                            initializeMsalWithConfig(settingsManager, false);
+                        } else {
+                            // Both broker and non-broker failed
+                            isInitializing = false;
+                            msalInitError = exception.getMessage();
+                            Log.e(TAG, "MSAL init échoué (toutes tentatives): " + msalInitError, exception);
+                        }
                     }
                 });
     }

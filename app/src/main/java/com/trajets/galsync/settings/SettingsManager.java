@@ -436,6 +436,14 @@ public class SettingsManager {
      * and write it to internal storage.
      */
     public File generateAuthConfig() {
+        return generateAuthConfig(true);
+    }
+
+    /**
+     * Generate the MSAL auth_config.json with optional broker support.
+     * @param withBroker true to enable broker (Microsoft Authenticator), false for browser-only
+     */
+    public File generateAuthConfig(boolean withBroker) {
         if (!isConfigured()) {
             return null;
         }
@@ -460,10 +468,18 @@ public class SettingsManager {
         // Use Gson to safely build the JSON and avoid injection
         com.google.gson.JsonObject config = new com.google.gson.JsonObject();
         config.addProperty("client_id", clientId);
-        config.addProperty("authorization_user_agent", "DEFAULT");
         config.addProperty("redirect_uri", redirectUri);
         config.addProperty("account_mode", "SINGLE");
-        config.addProperty("broker_redirect_uri_registered", true);
+
+        if (withBroker) {
+            // Broker mode: let MSAL pick the best option (Authenticator > browser)
+            config.addProperty("authorization_user_agent", "DEFAULT");
+            config.addProperty("broker_redirect_uri_registered", true);
+        } else {
+            // Browser-only mode: fallback when broker is unavailable (work profile, etc.)
+            config.addProperty("authorization_user_agent", "BROWSER");
+            config.addProperty("broker_redirect_uri_registered", false);
+        }
 
         com.google.gson.JsonObject authority = new com.google.gson.JsonObject();
         authority.addProperty("type", "AAD");
@@ -475,6 +491,8 @@ public class SettingsManager {
         config.add("authorities", authorities);
 
         String json = new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(config);
+
+        Log.d(TAG, "generateAuthConfig: broker=" + withBroker);
 
         try {
             File configFile = new File(context.getFilesDir(), "auth_config_dynamic.json");
