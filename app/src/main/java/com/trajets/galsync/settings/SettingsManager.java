@@ -7,6 +7,8 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
+import android.os.Build;
+import android.os.UserManager;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -52,6 +54,11 @@ public class SettingsManager {
     private static final String KEY_USER_HAS_CONFIGURED = "user_has_configured";
 
     private static final int DEFAULT_SYNC_INTERVAL_HOURS = 24;
+
+    // Auth strategy constants for generateAuthConfig(int)
+    public static final int AUTH_STRATEGY_BROKER = 0;
+    public static final int AUTH_STRATEGY_BROWSER = 1;
+    public static final int AUTH_STRATEGY_DEFAULT_NO_BROKER = 2;
 
     // UUID pattern for validating Client ID, Tenant ID, Group ID
     private static final Pattern UUID_PATTERN = Pattern.compile(
@@ -182,6 +189,42 @@ public class SettingsManager {
 
     public void setAutoCountryCodeEnabled(boolean enabled) {
         prefs.edit().putBoolean(KEY_AUTO_COUNTRY_CODE, enabled).apply();
+    }
+
+    /**
+     * Detect whether the app is running inside an Android work profile
+     * (managed by Intune, Knox, etc.).
+     *
+     * This is used to skip broker auth (Microsoft Authenticator can't communicate
+     * across profile boundaries) and to prefer Edge as the auth browser.
+     */
+    public static boolean isRunningInWorkProfile(Context context) {
+        try {
+            UserManager um = (UserManager) context.getSystemService(Context.USER_SERVICE);
+            if (um == null) return false;
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                // API 30+: definitive check
+                return um.isManagedProfile();
+            }
+            // API 26-29: non-system user is typically a work/managed profile
+            return !um.isSystemUser();
+        } catch (Exception e) {
+            Log.w(TAG, "Could not detect work profile", e);
+            return false;
+        }
+    }
+
+    /**
+     * Check if Microsoft Edge is installed (work profile browser preference).
+     */
+    public boolean isEdgeInstalled() {
+        try {
+            context.getPackageManager().getPackageInfo("com.microsoft.emmx", 0);
+            return true;
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
+        }
     }
 
     public boolean hasAttributeFilter() {
@@ -469,17 +512,26 @@ public class SettingsManager {
 
     /**
      * Generate the MSAL auth_config.json dynamically from settings
-     * and write it to internal storage.
+     * and write it to internal storage. Uses broker strategy by default.
      */
     public File generateAuthConfig() {
-        return generateAuthConfig(true);
+        return generateAuthConfig(AUTH_STRATEGY_BROKER);
     }
 
     /**
-     * Generate the MSAL auth_config.json with optional broker support.
-     * @param withBroker true to enable broker (Microsoft Authenticator), false for browser-only
+     * Legacy overload: true = BROKER, false = BROWSER.
      */
     public File generateAuthConfig(boolean withBroker) {
+        return generateAuthConfig(withBroker ? AUTH_STRATEGY_BROKER : AUTH_STRATEGY_BROWSER);
+    }
+
+    /**
+     * Generate the MSAL auth_config.json for the given auth strategy.
+     *
+     * @param strategy one of AUTH_STRATEGY_BROKER, AUTH_STRATEGY_BROWSER,
+     *                 or AUTH_STRATEGY_DEFAULT_NO_BROKER
+     */
+    public File generateAuthConfig(int strategy) {
         if (!isConfigured()) {
             return null;
         }
@@ -507,14 +559,31 @@ public class SettingsManager {
         config.addProperty("redirect_uri", redirectUri);
         config.addProperty("account_mode", "SINGLE");
 
-        if (withBroker) {
-            // Broker mode: let MSAL pick the best option (Authenticator > browser)
-            config.addProperty("authorization_user_agent", "DEFAULT");
-            config.addProperty("broker_redirect_uri_registered", true);
-        } else {
-            // Browser-only mode: fallback when broker is unavailable (work profile, etc.)
-            config.addProperty("authorization_user_agent", "BROWSER");
-            config.addProperty("broker_redirect_uri_registered", false);
+        String strategyName;
+        switch (strategy) {
+            case AUTH_STRATEGY_BROKER:
+                // Broker mode: uses Authenticator app for phishing-resistant MFA
+                config.addProperty("authorization_user_agent", "DEFAULT");
+                config.addProperty("broker_redirect_uri_registered", true);
+                strategyName = "BROKER";
+                break;
+
+            case AUTH_STRATEGY_BROWSER:
+                // Browser-only mode via Custom Tabs
+                config.addProperty("authorization_user_agent", "BROWSER");
+                config.addProperty("broker_redirect_uri_registered", false);
+                strategyName = "BROWSER";
+                break;
+
+            case AUTH_STRATEGY_DEFAULT_NO_BROKER:
+            default:
+                // Minimal mode: let MSAL pick (DEFAULT) but without broker redirect.
+                // This allows MSAL to use its own fallback logic including regular
+                // browser intents (not just Custom Tabs).
+                config.addProperty("authorization_user_agent", "DEFAULT");
+                config.addProperty("broker_redirect_uri_registered", false);
+                strategyName = "DEFAULT_NO_BROKER";
+                break;
         }
 
         com.google.gson.JsonObject authority = new com.google.gson.JsonObject();
@@ -526,9 +595,20 @@ public class SettingsManager {
         authorities.add(authority);
         config.add("authorities", authorities);
 
+        // In work profiles, add browser_safelist to prefer Edge, then Chrome,
+        // then Samsung Internet. This ensures MSAL finds an appropriate browser
+        // even if default browser discovery is restricted by Knox.
+        if (strategy != AUTH_STRATEGY_BROKER && isRunningInWorkProfile(context)) {
+            com.google.gson.JsonArray browserSafelist = buildWorkProfileBrowserSafelist();
+            if (browserSafelist.size() > 0) {
+                config.add("browser_safelist", browserSafelist);
+                Log.d(TAG, "Added browser_safelist for work profile (" + browserSafelist.size() + " entries)");
+            }
+        }
+
         String json = new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(config);
 
-        Log.d(TAG, "generateAuthConfig: broker=" + withBroker);
+        Log.d(TAG, "generateAuthConfig: strategy=" + strategyName);
 
         try {
             File configFile = new File(context.getFilesDir(), "auth_config_dynamic.json");
@@ -537,7 +617,88 @@ public class SettingsManager {
             writer.close();
             return configFile;
         } catch (Exception e) {
+            Log.e(TAG, "Failed to write auth config file", e);
             return null;
         }
+    }
+
+    /**
+     * Build the MSAL browser_safelist for work profiles.
+     * Order: Edge → Chrome → Samsung Internet.
+     * Only includes browsers that are actually installed.
+     */
+    private com.google.gson.JsonArray buildWorkProfileBrowserSafelist() {
+        com.google.gson.JsonArray list = new com.google.gson.JsonArray();
+        PackageManager pm = context.getPackageManager();
+
+        // Edge (preferred in managed/work environments)
+        addBrowserIfInstalled(list, pm, "com.microsoft.emmx", "45.0");
+        // Chrome
+        addBrowserIfInstalled(list, pm, "com.android.chrome", "45.0");
+        // Samsung Internet
+        addBrowserIfInstalled(list, pm, "com.sec.android.app.sbrowser", "1.0");
+
+        return list;
+    }
+
+    private void addBrowserIfInstalled(com.google.gson.JsonArray list, PackageManager pm,
+                                        String packageName, String minVersion) {
+        try {
+            android.content.pm.PackageInfo info = pm.getPackageInfo(packageName,
+                    PackageManager.GET_SIGNING_CERTIFICATES);
+            if (info != null) {
+                com.google.gson.JsonObject browser = new com.google.gson.JsonObject();
+                browser.addProperty("browser_package_name", packageName);
+                browser.addProperty("browser_use_customTab", true);
+                browser.addProperty("browser_version_lower_bound", minVersion);
+
+                // Compute the SHA-256 signature hash from the installed browser's
+                // signing certificate so MSAL accepts it.
+                com.google.gson.JsonArray hashes = new com.google.gson.JsonArray();
+                String hash = getSignatureHash(info);
+                if (hash != null) {
+                    hashes.add(hash);
+                }
+                browser.add("browser_signature_hashes", hashes);
+
+                list.add(browser);
+                Log.d(TAG, "Browser safelist: added " + packageName
+                        + (hash != null ? " (hash=" + hash.substring(0, 8) + "...)" : " (no hash)"));
+            }
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.d(TAG, "Browser safelist: " + packageName + " not installed");
+        } catch (Exception e) {
+            Log.w(TAG, "Browser safelist: error checking " + packageName, e);
+        }
+    }
+
+    /**
+     * Compute the Base64-encoded SHA-256 hash of a package's signing certificate.
+     * This is the format MSAL expects in browser_signature_hashes.
+     */
+    private String getSignatureHash(android.content.pm.PackageInfo packageInfo) {
+        try {
+            android.content.pm.Signature[] signatures = null;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                android.content.pm.SigningInfo signingInfo = packageInfo.signingInfo;
+                if (signingInfo != null) {
+                    signatures = signingInfo.getApkContentsSigners();
+                }
+            }
+            if (signatures == null) {
+                // Fallback for older behavior (shouldn't happen with minSdk 26)
+                return null;
+            }
+            if (signatures.length > 0) {
+                byte[] certBytes = signatures[0].toByteArray();
+                java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+                byte[] digest = md.digest(certBytes);
+                return android.util.Base64.encodeToString(digest,
+                        android.util.Base64.NO_WRAP | android.util.Base64.NO_PADDING);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Could not compute signature hash", e);
+        }
+        return null;
     }
 }
