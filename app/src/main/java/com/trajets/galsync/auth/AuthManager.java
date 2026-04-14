@@ -28,12 +28,33 @@ public class AuthManager {
             "GroupMember.Read.All"
     };
 
+    /**
+     * Auth strategies to try, in order, depending on the profile type.
+     *
+     * Normal device: BROKER → BROWSER → DEFAULT_NO_BROKER
+     * Work profile:  BROWSER → DEFAULT_NO_BROKER
+     *   (broker is skipped because Authenticator can't communicate
+     *    across work profile boundaries on Samsung/Knox devices)
+     */
+    private static final int[] STRATEGIES_NORMAL = {
+            SettingsManager.AUTH_STRATEGY_BROKER,
+            SettingsManager.AUTH_STRATEGY_BROWSER,
+            SettingsManager.AUTH_STRATEGY_DEFAULT_NO_BROKER
+    };
+    private static final int[] STRATEGIES_WORK_PROFILE = {
+            SettingsManager.AUTH_STRATEGY_BROWSER,
+            SettingsManager.AUTH_STRATEGY_DEFAULT_NO_BROKER
+    };
+
+    private static final String[] STRATEGY_NAMES = {"BROKER", "BROWSER", "DEFAULT_NO_BROKER"};
+
     private final Context context;
     private Activity activity;
     private ISingleAccountPublicClientApplication msalApp;
     private String accessToken;
     private String msalInitError;
     private boolean isInitializing = false;
+    private boolean isWorkProfile = false;
 
     public interface AuthCallback {
         void onSuccess(String accessToken);
@@ -75,25 +96,41 @@ public class AuthManager {
         isInitializing = true;
         msalInitError = null;
 
-        // Try with broker first (supports phishing-resistant MFA via Authenticator).
-        // If broker init fails (e.g. work profile isolation), automatically
-        // retry with browser-only mode.
-        initializeMsalWithConfig(settingsManager, true);
+        isWorkProfile = SettingsManager.isRunningInWorkProfile(context);
+        int[] strategies = isWorkProfile ? STRATEGIES_WORK_PROFILE : STRATEGIES_NORMAL;
+
+        Log.d(TAG, "Initialisation MSAL — profil de travail: " + isWorkProfile
+                + ", stratégies: " + strategies.length);
+
+        // Log available browsers for diagnostics
+        logAvailableBrowsers();
+
+        initializeMsalWithStrategy(settingsManager, strategies, 0);
     }
 
-    private void initializeMsalWithConfig(SettingsManager settingsManager, boolean withBroker) {
-        Log.d(TAG, "Initialisation MSAL (broker=" + withBroker + ")...");
-
-        File configFile = settingsManager.generateAuthConfig(withBroker);
-        if (configFile == null || !configFile.exists()) {
-            if (withBroker) {
-                Log.w(TAG, "Config broker échouée, tentative sans broker...");
-                initializeMsalWithConfig(settingsManager, false);
-                return;
-            }
+    /**
+     * Try MSAL init with strategy at the given index. On failure, automatically
+     * advances to the next strategy.
+     */
+    private void initializeMsalWithStrategy(SettingsManager settingsManager,
+                                             int[] strategies, int index) {
+        if (index >= strategies.length) {
             isInitializing = false;
+            Log.e(TAG, "MSAL init échoué — toutes les stratégies ont échoué: " + msalInitError);
+            return;
+        }
+
+        int strategy = strategies[index];
+        String strategyName = strategy < STRATEGY_NAMES.length
+                ? STRATEGY_NAMES[strategy] : String.valueOf(strategy);
+        Log.d(TAG, "Tentative MSAL stratégie " + (index + 1) + "/" + strategies.length
+                + ": " + strategyName);
+
+        File configFile = settingsManager.generateAuthConfig(strategy);
+        if (configFile == null || !configFile.exists()) {
+            Log.w(TAG, "Config generation failed for strategy " + strategyName);
             msalInitError = "Impossible de générer le fichier de configuration MSAL";
-            Log.e(TAG, msalInitError);
+            initializeMsalWithStrategy(settingsManager, strategies, index + 1);
             return;
         }
 
@@ -105,7 +142,7 @@ public class AuthManager {
             String line;
             while ((line = reader.readLine()) != null) sb.append(line).append("\n");
             reader.close();
-            Log.d(TAG, "MSAL config (broker=" + withBroker + "):\n" + sb.toString());
+            Log.d(TAG, "MSAL config (" + strategyName + "):\n" + sb.toString());
         } catch (Exception e) {
             Log.w(TAG, "Could not log config file");
         }
@@ -118,35 +155,76 @@ public class AuthManager {
                             msalApp = application;
                             isInitializing = false;
                             msalInitError = null;
-                            Log.d(TAG, "MSAL initialisé avec succès (broker=" + withBroker + ")");
+                            Log.d(TAG, "MSAL initialisé avec succès (stratégie: " + strategyName + ")");
                         }
 
                         public void onError(MsalException exception) {
-                            Log.e(TAG, "MSAL init onError (broker=" + withBroker + "): "
-                                    + exception.getClass().getSimpleName() + " — " + exception.getMessage(), exception);
-                            if (withBroker) {
-                                Log.w(TAG, "Tentative sans broker...");
-                                initializeMsalWithConfig(settingsManager, false);
-                            } else {
-                                isInitializing = false;
-                                msalInitError = exception.getMessage();
-                                Log.e(TAG, "MSAL init échoué (toutes tentatives): " + msalInitError);
-                            }
+                            Log.e(TAG, "MSAL init onError (" + strategyName + "): "
+                                    + exception.getClass().getSimpleName()
+                                    + " — " + exception.getMessage(), exception);
+                            msalInitError = strategyName + ": " + exception.getMessage();
+                            initializeMsalWithStrategy(settingsManager, strategies, index + 1);
                         }
                     });
         } catch (Exception e) {
             // createSingleAccountPublicClientApplication can throw synchronously
             // on some devices / work profile configurations
-            Log.e(TAG, "MSAL init exception (broker=" + withBroker + "): "
+            Log.e(TAG, "MSAL init exception (" + strategyName + "): "
                     + e.getClass().getSimpleName() + " — " + e.getMessage(), e);
-            if (withBroker) {
-                Log.w(TAG, "Tentative sans broker après exception...");
-                initializeMsalWithConfig(settingsManager, false);
-            } else {
-                isInitializing = false;
-                msalInitError = e.getMessage();
-                Log.e(TAG, "MSAL init échoué (toutes tentatives après exception): " + msalInitError);
+            msalInitError = strategyName + ": " + e.getMessage();
+            initializeMsalWithStrategy(settingsManager, strategies, index + 1);
+        }
+    }
+
+    /**
+     * Log which browsers are visible to help diagnose work profile issues.
+     */
+    private void logAvailableBrowsers() {
+        try {
+            android.content.pm.PackageManager pm = context.getPackageManager();
+            android.content.Intent browserIntent = new android.content.Intent(
+                    android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse("https://login.microsoftonline.com"));
+            java.util.List<android.content.pm.ResolveInfo> browsers =
+                    pm.queryIntentActivities(browserIntent, 0);
+            StringBuilder sb = new StringBuilder("Navigateurs disponibles: ");
+            for (android.content.pm.ResolveInfo info : browsers) {
+                if (info.activityInfo != null) {
+                    sb.append(info.activityInfo.packageName).append(", ");
+                }
             }
+            Log.d(TAG, sb.toString());
+
+            // Check specific browsers
+            String[] knownBrowsers = {
+                    "com.microsoft.emmx",       // Edge
+                    "com.android.chrome",        // Chrome
+                    "com.sec.android.app.sbrowser" // Samsung Internet
+            };
+            for (String pkg : knownBrowsers) {
+                try {
+                    pm.getPackageInfo(pkg, 0);
+                    Log.d(TAG, "Navigateur installé: " + pkg);
+                } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+                    Log.d(TAG, "Navigateur absent: " + pkg);
+                }
+            }
+
+            // Check broker apps
+            String[] brokerApps = {
+                    "com.azure.authenticator",
+                    "com.microsoft.windowsintune.companyportal"
+            };
+            for (String pkg : brokerApps) {
+                try {
+                    pm.getPackageInfo(pkg, 0);
+                    Log.d(TAG, "Broker installé: " + pkg);
+                } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+                    Log.d(TAG, "Broker absent: " + pkg);
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Could not enumerate browsers", e);
         }
     }
 

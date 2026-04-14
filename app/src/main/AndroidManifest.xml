@@ -18,6 +18,39 @@
     <uses-permission android:name="android.permission.WRITE_SYNC_SETTINGS" />
     <uses-permission android:name="android.permission.CAMERA" android:required="false"/>
 
+    <!-- Package visibility: required on Android 11+ (API 30) for MSAL to discover
+         the broker (Authenticator / Company Portal) and available browsers.
+         Without these, MSAL init fails on work profiles with "MSAL non initialisé". -->
+    <queries>
+        <!-- MSAL broker apps -->
+        <package android:name="com.azure.authenticator" />
+        <package android:name="com.microsoft.windowsintune.companyportal" />
+
+        <!-- Browsers for MSAL auth (especially important in work profiles) -->
+        <package android:name="com.microsoft.emmx" />
+        <package android:name="com.android.chrome" />
+        <package android:name="com.sec.android.app.sbrowser" />
+
+        <!-- Custom Tabs service discovery (used by MSAL browser auth) -->
+        <intent>
+            <action android:name="android.support.customtabs.action.CustomTabsService" />
+        </intent>
+
+        <!-- Generic HTTPS browser discovery -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+
+        <!-- msauth redirect scheme discovery -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="msauth" />
+        </intent>
+    </queries>
+
     <application
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
