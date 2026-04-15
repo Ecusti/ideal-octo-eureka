@@ -69,11 +69,7 @@ public class MainActivity extends AppCompatActivity {
 
         checkPermissions();
 
-        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
-            public void run() {
-                updateUI();
-            }
-        }, 2000);
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(this::updateUI, 2000);
 
         Log.d(TAG, "=== onCreate END ===");
     }
@@ -82,21 +78,15 @@ public class MainActivity extends AppCompatActivity {
         authManager.checkSignedInAccount(new AuthManager.AuthCallback() {
             public void onSuccess(String accessToken) {
                 Log.d(TAG, "Compte existant trouvé et token récupéré");
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        updateUI();
-                        tvStatus.setText("Connecté - Prêt à synchroniser");
-                    }
+                runOnUiThread(() -> {
+                    updateUI();
+                    tvStatus.setText("Connecté - Prêt à synchroniser");
                 });
             }
 
             public void onError(Exception exception) {
                 Log.d(TAG, "Aucun compte existant ou erreur: " + exception.getMessage());
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        updateUI();
-                    }
-                });
+                runOnUiThread(() -> updateUI());
             }
         });
     }
@@ -109,31 +99,17 @@ public class MainActivity extends AppCompatActivity {
         progressBar = findViewById(R.id.progress_bar);
 
         if (btnLogin != null) {
-            btnLogin.setOnClickListener(new View.OnClickListener() {
-                public void onClick(View v) {
-                    performLogin();
-                }
-            });
+            btnLogin.setOnClickListener(v -> performLogin());
         }
 
-        btnSync.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                performSync();
-            }
-        });
+        btnSync.setOnClickListener(v -> performSync());
 
-        btnLogout.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                performLogout();
-            }
-        });
+        btnLogout.setOnClickListener(v -> performLogout());
 
         btnSettings = findViewById(R.id.btn_settings);
-        btnSettings.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
-                settingsLauncher.launch(intent);
-            }
+        btnSettings.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
+            settingsLauncher.launch(intent);
         });
     }
 
@@ -192,28 +168,24 @@ public class MainActivity extends AppCompatActivity {
 
         authManager.signIn(new AuthManager.AuthCallback() {
             public void onSuccess(String accessToken) {
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        setLoading(false);
-                        tvStatus.setText("Connecté avec succès");
-                        updateUI();
-                        Toast.makeText(MainActivity.this, "Authentification réussie",
-                                Toast.LENGTH_SHORT).show();
-                    }
+                runOnUiThread(() -> {
+                    setLoading(false);
+                    tvStatus.setText("Connecté avec succès");
+                    updateUI();
+                    Toast.makeText(MainActivity.this, "Authentification réussie",
+                            Toast.LENGTH_SHORT).show();
                 });
             }
 
             public void onError(Exception exception) {
                 Log.e(TAG, "Erreur de login", exception);
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        setLoading(false);
-                        tvStatus.setText("Erreur de connexion");
-                        updateUI();
-                        Toast.makeText(MainActivity.this,
-                                "Erreur: " + exception.getMessage(),
-                                Toast.LENGTH_LONG).show();
-                    }
+                runOnUiThread(() -> {
+                    setLoading(false);
+                    tvStatus.setText("Erreur de connexion");
+                    updateUI();
+                    Toast.makeText(MainActivity.this,
+                            "Erreur: " + exception.getMessage(),
+                            Toast.LENGTH_LONG).show();
                 });
             }
         });
@@ -225,48 +197,38 @@ public class MainActivity extends AppCompatActivity {
 
         syncManager.syncContacts(new ContactSyncManager.SyncCallback() {
             public void onProgress(final int current, final int total) {
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        tvStatus.setText("Synchronisation: " + current + "/" + total + " contacts");
-                    }
-                });
+                runOnUiThread(() -> tvStatus.setText("Synchronisation: " + current + "/" + total + " contacts"));
             }
 
             public void onComplete(final int syncedCount) {
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        setLoading(false);
-                        tvStatus.setText("Synchronisation terminée: " + syncedCount + " contacts");
-                        Toast.makeText(MainActivity.this,
-                                syncedCount + " contacts synchronisés",
-                                Toast.LENGTH_SHORT).show();
-                    }
+                runOnUiThread(() -> {
+                    setLoading(false);
+                    tvStatus.setText("Synchronisation terminée: " + syncedCount + " contacts");
+                    Toast.makeText(MainActivity.this,
+                            syncedCount + " contacts synchronisés",
+                            Toast.LENGTH_SHORT).show();
                 });
             }
 
             public void onError(Exception exception) {
                 Log.e(TAG, "Erreur sync", exception);
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        setLoading(false);
-                        tvStatus.setText("Erreur de synchronisation");
-                        Toast.makeText(MainActivity.this,
-                                "Erreur: " + exception.getMessage(),
-                                Toast.LENGTH_LONG).show();
-                    }
+                runOnUiThread(() -> {
+                    setLoading(false);
+                    tvStatus.setText("Erreur de synchronisation");
+                    Toast.makeText(MainActivity.this,
+                            "Erreur: " + exception.getMessage(),
+                            Toast.LENGTH_LONG).show();
                 });
             }
         });
     }
 
     private void performLogout() {
-        authManager.signOut(new Runnable() {
-            public void run() {
-                tvStatus.setText("Déconnecté");
-                updateUI();
-                Toast.makeText(MainActivity.this, "Déconnexion réussie",
-                        Toast.LENGTH_SHORT).show();
-            }
+        authManager.signOut(() -> {
+            tvStatus.setText("Déconnecté");
+            updateUI();
+            Toast.makeText(MainActivity.this, "Déconnexion réussie",
+                    Toast.LENGTH_SHORT).show();
         });
     }
 

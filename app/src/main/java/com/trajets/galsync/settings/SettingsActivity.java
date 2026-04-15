@@ -1,10 +1,8 @@
 package com.trajets.galsync.settings;
 
-import android.content.Intent;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.MenuItem;
-import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -93,12 +91,7 @@ public class SettingsActivity extends AppCompatActivity {
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerSyncInterval.setAdapter(adapter);
 
-        btnSave.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                saveSettings();
-            }
-        });
+        btnSave.setOnClickListener(v -> saveSettings());
 
         cbNestedGroups = findViewById(R.id.cb_nested_groups);
         cbAutoCountryCode = findViewById(R.id.cb_auto_country_code);
@@ -106,19 +99,9 @@ public class SettingsActivity extends AppCompatActivity {
         btnImportQr = findViewById(R.id.btn_import_qr);
         btnImportUrl = findViewById(R.id.btn_import_url);
 
-        btnImportQr.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                scanQrCode();
-            }
-        });
+        btnImportQr.setOnClickListener(v -> scanQrCode());
 
-        btnImportUrl.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showUrlImportDialog();
-            }
-        });
+        btnImportUrl.setOnClickListener(v -> showUrlImportDialog());
     }
 
     private void loadSettings() {

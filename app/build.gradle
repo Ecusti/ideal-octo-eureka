@@ -4,7 +4,7 @@ plugins {
 
 android {
     namespace 'com.trajets.galsync'
-    compileSdk 36
+    compileSdk 37
 
     defaultConfig {
         applicationId "com.trajets.galsync2"
@@ -37,10 +37,10 @@ dependencies {
     implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
     implementation 'androidx.browser:browser:1.10.0'
 
-    implementation('com.microsoft.identity.client:msal:8.2.3') {
+    implementation('com.microsoft.identity.client:msal:8.3.0') {
         exclude group: 'com.microsoft.device.display', module: 'display-mask'
     }
-    implementation('com.microsoft.identity:common:24.0.1') {
+    implementation('com.microsoft.identity:common:24.1.0') {
         exclude group: 'com.microsoft.device.display', module: 'display-mask'
     }
 
