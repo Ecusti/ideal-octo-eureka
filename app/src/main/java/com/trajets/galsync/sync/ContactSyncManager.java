@@ -61,8 +61,7 @@ public class ContactSyncManager {
     }
 
     public void syncContacts(final SyncCallback callback) {
-        executor.execute(new Runnable() {
-            public void run() {
+        executor.execute(() -> {
                 try {
                     final String[] tokenHolder = new String[1];
                     final Exception[] errorHolder = new Exception[1];
@@ -122,7 +121,6 @@ public class ContactSyncManager {
                     recordError(e);
                     callback.onError(e);
                 }
-            }
         });
     }
 
@@ -465,10 +463,8 @@ public class ContactSyncManager {
 
                     EntraUser entraUser = new EntraUser();
 
-                    String userId = null;
                     if (userJson.has("id") && !userJson.get("id").isJsonNull()) {
-                        userId = userJson.get("id").getAsString();
-                        entraUser.setId(userId);
+                        entraUser.setId(userJson.get("id").getAsString());
                     }
 
                     entraUser.setDisplayName(displayName);

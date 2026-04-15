@@ -3,7 +3,6 @@ package com.trajets.galsync.settings;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
@@ -194,9 +193,9 @@ public class SettingsManager {
     /**
      * Detect whether the app is running inside an Android work profile
      * (managed by Intune, Knox, etc.).
-     *
-     * This is used to skip broker auth (Microsoft Authenticator can't communicate
-     * across profile boundaries) and to prefer Edge as the auth browser.
+     * <p>
+     * This is used to adjust auth strategy (broker vs browser) and to prefer
+     * Edge as the auth browser.
      */
     public static boolean isRunningInWorkProfile(Context context) {
         try {
@@ -211,18 +210,6 @@ public class SettingsManager {
             return !um.isSystemUser();
         } catch (Exception e) {
             Log.w(TAG, "Could not detect work profile", e);
-            return false;
-        }
-    }
-
-    /**
-     * Check if Microsoft Edge is installed (work profile browser preference).
-     */
-    public boolean isEdgeInstalled() {
-        try {
-            context.getPackageManager().getPackageInfo("com.microsoft.emmx", 0);
-            return true;
-        } catch (PackageManager.NameNotFoundException e) {
             return false;
         }
     }
@@ -301,10 +288,10 @@ public class SettingsManager {
     /**
      * On first launch (before the user has saved settings manually), read the bundled
      * auth_config.json from res/raw and populate settings from it.
-     *
+     * <p>
      * If the bundled file still contains "PLACEHOLDER" values, nothing is applied —
      * this means the admin has not customized the APK and the user must configure manually.
-     *
+     * <p>
      * Call this once from MainActivity.onCreate().
      */
     public void loadDefaultsIfNeeded(int rawResourceId) {
@@ -436,7 +423,7 @@ public class SettingsManager {
     /**
      * Read the redirect_uri that matches the BrowserTabActivity intent-filter
      * declared in the AndroidManifest.
-     *
+     * <p>
      * Uses multiple strategies to work across all device types including
      * Samsung Knox work profiles where queryIntentActivities() may fail.
      */
@@ -519,15 +506,8 @@ public class SettingsManager {
     }
 
     /**
-     * Legacy overload: true = BROKER, false = BROWSER.
-     */
-    public File generateAuthConfig(boolean withBroker) {
-        return generateAuthConfig(withBroker ? AUTH_STRATEGY_BROKER : AUTH_STRATEGY_BROWSER);
-    }
-
-    /**
      * Generate the MSAL auth_config.json for the given auth strategy.
-     *
+     * <p>
      * @param strategy one of AUTH_STRATEGY_BROKER, AUTH_STRATEGY_BROWSER,
      *                 or AUTH_STRATEGY_DEFAULT_NO_BROKER
      */

@@ -19,13 +19,13 @@ import okhttp3.ResponseBody;
 
 /**
  * Parses Entra ID configuration from a JSON string (inline or downloaded from a URL).
- *
+ * <p>
  * Design contract:
  * - No validation is done here. Raw values are returned so the UI can display them.
  * - Validation (UUID format, attribute name, etc.) happens only when the user taps Save.
  * - A field present in the JSON (even empty) is returned as a String.
  * - A field absent from the JSON is returned as null, which tells the UI to clear that field.
- *
+ * <p>
  * Expected JSON format:
  * {
  *   "client_id":        "uuid",           // required

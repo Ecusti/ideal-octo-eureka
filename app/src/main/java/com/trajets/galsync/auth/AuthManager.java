@@ -30,7 +30,7 @@ public class AuthManager {
 
     /**
      * Auth strategies to try, in order, depending on the profile type.
-     *
+     * <p>
      * Normal device: BROKER → BROWSER → DEFAULT_NO_BROKER
      * Work profile:  BROKER → BROWSER → DEFAULT_NO_BROKER
      *   (broker is required for Strong MFA / device compliance Conditional Access
@@ -234,11 +234,8 @@ public class AuthManager {
     public void checkSignedInAccount(final AuthCallback callback) {
         if (msalApp == null) {
             if (isInitializing) {
-                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
-                    public void run() {
-                        checkSignedInAccount(callback);
-                    }
-                }, 500);
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(
+                        () -> checkSignedInAccount(callback), 500);
                 return;
             }
             callback.onError(new Exception("MSAL non initialisé"));
@@ -277,11 +274,8 @@ public class AuthManager {
         if (msalApp == null) {
             if (isInitializing) {
                 Log.d(TAG, "MSAL en cours d'initialisation, attente...");
-                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
-                    public void run() {
-                        signIn(callback);
-                    }
-                }, 500);
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(
+                        () -> signIn(callback), 500);
                 return;
             } else {
                 String detail = msalInitError != null ? msalInitError : "vérifiez auth_config.json";
@@ -347,11 +341,8 @@ public class AuthManager {
     public void acquireTokenSilently(final AuthCallback callback) {
         if (msalApp == null) {
             if (isInitializing) {
-                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
-                    public void run() {
-                        acquireTokenSilently(callback);
-                    }
-                }, 500);
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(
+                        () -> acquireTokenSilently(callback), 500);
                 return;
             }
             callback.onError(new Exception("MSAL non initialisé"));
