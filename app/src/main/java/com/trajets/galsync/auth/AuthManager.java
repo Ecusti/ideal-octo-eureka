@@ -32,9 +32,11 @@ public class AuthManager {
      * Auth strategies to try, in order, depending on the profile type.
      *
      * Normal device: BROKER → BROWSER → DEFAULT_NO_BROKER
-     * Work profile:  BROWSER → DEFAULT_NO_BROKER
-     *   (broker is skipped because Authenticator can't communicate
-     *    across work profile boundaries on Samsung/Knox devices)
+     * Work profile:  BROKER → BROWSER → DEFAULT_NO_BROKER
+     *   (broker is required for Strong MFA / device compliance Conditional Access
+     *    policies — error 53003 occurs without it. Since both GalSync and
+     *    Authenticator are in the same work profile, broker should work now
+     *    that <queries> enables package visibility.)
      */
     private static final int[] STRATEGIES_NORMAL = {
             SettingsManager.AUTH_STRATEGY_BROKER,
@@ -42,6 +44,7 @@ public class AuthManager {
             SettingsManager.AUTH_STRATEGY_DEFAULT_NO_BROKER
     };
     private static final int[] STRATEGIES_WORK_PROFILE = {
+            SettingsManager.AUTH_STRATEGY_BROKER,
             SettingsManager.AUTH_STRATEGY_BROWSER,
             SettingsManager.AUTH_STRATEGY_DEFAULT_NO_BROKER
     };
