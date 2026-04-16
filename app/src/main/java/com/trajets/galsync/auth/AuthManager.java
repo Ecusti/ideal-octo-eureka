@@ -14,6 +14,7 @@ import com.microsoft.identity.client.PublicClientApplication;
 import com.microsoft.identity.client.SignInParameters;
 import com.microsoft.identity.client.SilentAuthenticationCallback;
 import com.microsoft.identity.client.exception.MsalException;
+import com.microsoft.identity.client.exception.MsalServiceException;
 import com.microsoft.identity.client.exception.MsalUiRequiredException;
 import com.trajets.galsync.settings.SettingsManager;
 
@@ -319,12 +320,17 @@ public class AuthManager {
                 .withCallback(new AuthenticationCallback() {
                     public void onSuccess(IAuthenticationResult authenticationResult) {
                         accessToken = authenticationResult.getAccessToken();
-                        Log.d(TAG, "Connexion réussie");
+                        IAccount account = authenticationResult.getAccount();
+                        Log.d(TAG, "Connexion réussie — compte: "
+                                + (account != null ? account.getUsername() : "inconnu")
+                                + ", authority: " + (account != null ? account.getAuthority() : "n/a"));
                         callback.onSuccess(accessToken);
                     }
 
                     public void onError(MsalException exception) {
-                        Log.e(TAG, "Erreur de connexion", exception);
+                        Log.e(TAG, "Erreur de connexion: " + exception.getClass().getSimpleName()
+                                + " — " + exception.getMessage(), exception);
+                        logMsalErrorDetails(exception);
                         callback.onError(exception);
                     }
 
@@ -359,14 +365,22 @@ public class AuthManager {
                             .withCallback(new SilentAuthenticationCallback() {
                                 public void onSuccess(IAuthenticationResult authenticationResult) {
                                     accessToken = authenticationResult.getAccessToken();
+                                    IAccount account = authenticationResult.getAccount();
+                                    Log.d(TAG, "Token silencieux obtenu — compte: "
+                                            + (account != null ? account.getUsername() : "inconnu"));
                                     callback.onSuccess(accessToken);
                                 }
 
                                 public void onError(MsalException exception) {
                                     if (exception instanceof MsalUiRequiredException && activity != null) {
-                                        Log.d(TAG, "Token silencieux refusé (MFA/interaction requise), basculement vers connexion interactive");
+                                        Log.d(TAG, "Token silencieux refusé, basculement vers connexion interactive");
+                                        logMsalErrorDetails(exception);
                                         performInteractiveSignIn(callback);
                                     } else {
+                                        Log.e(TAG, "Erreur token silencieux: "
+                                                + exception.getClass().getSimpleName()
+                                                + " — " + exception.getMessage());
+                                        logMsalErrorDetails(exception);
                                         callback.onError(exception);
                                     }
                                 }
@@ -386,6 +400,18 @@ public class AuthManager {
                 callback.onError(exception);
             }
         });
+    }
+
+    /**
+     * Log detailed error info from MsalServiceException (error code, HTTP status, claims).
+     * Helps diagnose Conditional Access (53003), device compliance, and broker issues.
+     */
+    private void logMsalErrorDetails(MsalException exception) {
+        if (exception instanceof MsalServiceException) {
+            MsalServiceException svcEx = (MsalServiceException) exception;
+            Log.e(TAG, "  MsalServiceException — errorCode=" + svcEx.getErrorCode()
+                    + ", httpStatus=" + svcEx.getHttpStatusCode());
+        }
     }
 
     public void signOut(final Runnable onComplete) {
