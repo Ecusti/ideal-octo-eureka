@@ -575,10 +575,13 @@ public class SettingsManager {
         authorities.add(authority);
         config.add("authorities", authorities);
 
-        // In work profiles, add browser_safelist to prefer Edge, then Chrome,
-        // then Samsung Internet. This ensures MSAL finds an appropriate browser
-        // even if default browser discovery is restricted by Knox.
-        if (strategy != AUTH_STRATEGY_BROKER && isRunningInWorkProfile(context)) {
+        // In work profiles, add browser_safelist to ALL strategies (including BROKER).
+        // This is critical because even with BROKER strategy, MSAL may internally
+        // fall back to browser if broker IPC fails. Without browser_safelist,
+        // MSAL might pick a browser without Custom Tab support and fall back to
+        // WebView — which cannot handle FIDO2/passkey authentication required
+        // by phishing-resistant MFA policies.
+        if (isRunningInWorkProfile(context)) {
             com.google.gson.JsonArray browserSafelist = buildWorkProfileBrowserSafelist();
             if (browserSafelist.size() > 0) {
                 config.add("browser_safelist", browserSafelist);
